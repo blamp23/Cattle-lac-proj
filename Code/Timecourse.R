@@ -1,10 +1,11 @@
-
+# Libraries ##########################################################################
 library(DESeq2)
 library(dplyr)
 
 # Normalized Count table and dds object from DESeq are needed to run code
 
 # Time-point Averages of Normalized Counts ######################################
+normalized_counts_df <- as.data.frame(normalized_counts)
 # Define/assign column names
 col_names <- c(rep("el", 7), rep("l", 7), rep("lp", 7), rep("mp", 7), rep("v", 7))
 names(normalized_counts_df) <- col_names
@@ -24,7 +25,7 @@ for (timepoint in unique(col_names)) {
 head(averages_df)
 
 
-# pairwise comparisons, hypothesis testing, and assignment of expression pattern ####
+# pairwise comparisons, hypothesis testing, and assignment of expression pattern ###################################
 contrasts <- list(
   c("condition", "mp", "v"),
   c("condition", "lp", "mp"),
@@ -80,7 +81,7 @@ for(model in unique(combined_results$modelVector)) {
   motif_index[[model]] <- genes
 }
 summary(motif_index)
-View(motif_index[['SSIS']])
+
 
 
 
