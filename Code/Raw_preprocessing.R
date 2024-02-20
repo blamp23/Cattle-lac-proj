@@ -92,7 +92,3 @@ ordered_column_indices <- order(colnames(normalized_counts))
 normalized_counts <- normalized_counts[, ordered_column_indices]
 
 
-
-
-
-
