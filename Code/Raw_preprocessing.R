@@ -1,19 +1,9 @@
 # Libraries #####################################################################
 library(DESeq2)
-library(ggplot2)
 library(sva)
-library(ggrepel)
-library(tidyverse)
-library(org.Bt.eg.db)
 library(dplyr)
-library(clusterProfiler)
-library(grid)
 library(readxl)
 library(tidyr)
-library(plotly)
-library(plot3D)
-library(KEGGREST)
-library(AnnotationDbi)
 # Raw Count Data From Galaxy #####################################################
 file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Raw_Cattle_Counts.tabular'
 df <- read.delim(file_path, header = TRUE, row.names = 1)
