@@ -2,7 +2,7 @@
 library(ggplot2)
 
 # Example motifs input
-input_motifs <- c("SISD", "SIID", "ISID", "SSSD", "DIIS")
+input_motifs <- c('SSIS', 'DDSI','ISIS')
 
 
 # Initialize an empty data frame to store motif trends
@@ -35,13 +35,15 @@ for (motif in input_motifs) {
   motif_data <- rbind(motif_data, data.frame(Timepoint = as.factor(timepoints), Value = values, Motif = motif))
 }
 
-# Plot the motifs
 ggplot(motif_data, aes(x = Timepoint, y = Value, group = Motif, color = Motif)) +
-  geom_line() +
-  geom_point() +
+  geom_smooth(se = FALSE, method = "loess", aes(linetype = Motif)) + # Adjust line type by group
   theme_minimal() +
-  labs(title = "Motif Trends",
-       x = "Timepoint",
-       y = "Value",
-       color = "Motif") +
-  scale_color_brewer(palette = "Set1")
+  labs(title = "Motif Trends", x = "Timepoint", y = "Value", color = "Motif") +
+  scale_color_brewer(palette = "Set1") +
+  guides(linetype = guide_legend(title = "Motif")) + # Ensure linetype legend is properly titled
+  scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) # Custom x-axis labels
+
+
+
+
+
