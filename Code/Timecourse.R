@@ -81,8 +81,7 @@ for(model in unique(combined_results$modelVector)) {
   motif_index[[model]] <- genes
 }
 summary(motif_index)
- 
 
-
+contrast_results$`v to mp`[rownames(contrast_results$`v to mp`) == "ENSBTAG00000019262", ]
 
 

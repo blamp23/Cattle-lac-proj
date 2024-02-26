@@ -2,7 +2,7 @@
 library(ggplot2)
 
 # Example motifs input
-input_motifs <- c('SSIS', 'DDSI','ISIS')
+input_motifs <- c('SSIS', 'DDSI','ISIS','DIDI')
 
 
 # Initialize an empty data frame to store motif trends
@@ -44,6 +44,9 @@ ggplot(motif_data, aes(x = Timepoint, y = Value, group = Motif, color = Motif)) 
   scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) # Custom x-axis labels
 
 
-
-
+excel_path <- "C:/Users/12142/Bioinformatics/Cattle-lac-proj/Processed_data/Motif_summary.xlsx"
+mix <- as.data.frame(summary(motif_index))
+# Save your motif_index data frame to an Excel file
+write_xlsx(mix, excel_path)
+library(writexl)
 
