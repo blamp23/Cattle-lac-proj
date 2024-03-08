@@ -49,6 +49,25 @@ fig <- plot_ly(data = pcaData3D, x = ~PC1, y = ~PC2, z = ~PC3, color = ~conditio
            zaxis = list(title = paste0("PC3: ", percentVar[3], "% variance"))
          ))
 fig
+
+# lil 2D PCA moment ############################################################
+vsd <- vst(dds)
+# Get the PCA data
+pcaData <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+
+# Extract the percent variance captured by each principal component
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+# Plot with ggplot2
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  geom_text_repel(aes(label=row.names(pcaData))) +  # using ggrepel to prevent overlap
+  stat_ellipse(aes(group=condition), level=0.85) +  # adding ellipses around each condition group
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme_bw() +
+  ggtitle("PCA Plot")
+
 # Loadings #####################################################################
 # Extracting loadings from PCA result
 loadings <- pcaResult$rotation

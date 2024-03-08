@@ -9,6 +9,7 @@ file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw
 df <- read.delim(file_path, header = TRUE, row.names = 1)
 df <- df[-1]
 
+samples
 samples <- data.frame(
   row.names = c("v_468", "v_502", "v_504", "v_507", "v_509", "v_598", "v_610", 
                 "mp_468", "mp_502", "mp_504", "mp_507", "mp_509", "mp_598", "mp_610",

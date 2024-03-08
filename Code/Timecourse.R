@@ -85,3 +85,19 @@ summary(motif_index)
 contrast_results$`v to mp`[rownames(contrast_results$`v to mp`) == "ENSBTAG00000019262", ]
 
 
+
+
+mapped_motif_index <- list()
+for(model in names(motif_index)) {
+  ensembl_ids <- motif_index[[model]]
+  gene_symbols <- mapIds(org.Bt.eg.db,
+                         keys = ensembl_ids,
+                         column = "SYMBOL",
+                         keytype = "ENSEMBL",
+                         multivals = 'first')
+  mapped_motif_index[[model]] <- gene_symbols
+}
+
+# Check the mapped gene symbols
+mapped_motif_index
+
