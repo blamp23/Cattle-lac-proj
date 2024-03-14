@@ -25,14 +25,32 @@ ncdf <- as.data.frame(ncdf)
 ncdf$gene <- rownames(ncdf)
 
 
+myColors <- c(
+  "v" = "#F8766D",
+  "mp" = "#00BA38",
+  "lp" = "#619CFF",
+  "el" = "#F564E3", 
+  "l" = "#FFC000" 
+)
+
+
 # Pivot the data to a long format
 ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "value")
 
 # Clean group names by removing numeric suffixes
 ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
 
-# Specify gene of interest
-goi <- 'LPO'
+# Specify gene of interest######################################################################
+goi <- 'FBN3'
+goi_model_vector <- ""
+
+# Iterate through mapped_motif_index to find the model vector for goi
+for(model in names(mapped_motif_index)) {
+  if(goi %in% mapped_motif_index[[model]]) {
+    goi_model_vector <- model
+    break
+  }
+}
 
 # Filter for gene of interest
 ld_gene_of_interest <- ld_goi %>% 
@@ -42,18 +60,40 @@ ld_gene_of_interest <- ld_goi %>%
 # Order the 'group' factor 
 ld_gene_of_interest$group <- factor(ld_gene_of_interest$group, levels = c("v", "mp", "lp", "el", "l"))
 
-# Plottin
+
 ggplot(ld_gene_of_interest, aes(x = group, y = value, fill = group)) +
   geom_boxplot() +
   theme_minimal() +
   geom_point(color="black", size=2, position = position_dodge(width = 0.75)) +
-  geom_smooth(aes(group = 1, fill = NULL), method = "loess", color = "navy", se = FALSE, show.legend = FALSE) +
-  stat_summary(fun = mean, geom = "point", color = "red", size = 3, shape = 18, show.legend = TRUE) + # Curved line through means
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_smooth(aes(group = 1, fill = NULL), method = "loess", color = "navy", se = FALSE, show.legend = FALSE, size = 2.25) +
+  stat_summary(fun = mean, geom = "point", color = "red", size = 3, shape = 18, show.legend = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(size = 20),
+        axis.title.x = element_text(size=15),
+        axis.title.y = element_text(size=15)) +
   scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) +
-  labs(title = paste("Expression of", unique(ld_gene_of_interest$gene)),
-       x = "Group",
-       y = "Expression")
+  labs(title = paste("Expression of", goi,"|",goi_model_vector),
+       x = "Time Point",
+       y = bquote(~Log[10]~ 'Normalized Counts')) +
+  scale_y_continuous(trans = 'log10') +
+  scale_fill_manual(values = myColors)
+
+#ISDS ISDD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
