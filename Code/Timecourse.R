@@ -1,6 +1,8 @@
 # Libraries ##########################################################################
 library(DESeq2)
 library(dplyr)
+library(AnnotationDbi)
+library(org.Bt.eg.db)
 
 # Normalized Count table and dds object from DESeq are needed to run code
 
