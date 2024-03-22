@@ -41,7 +41,7 @@ ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "valu
 ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
 
 # Specify gene of interest######################################################################
-goi <- 'JAG2'
+goi <- 'MRPL16'
 goi_model_vector <- ""
 
 # Iterate through mapped_motif_index to find the model vector for goi
@@ -60,8 +60,9 @@ ld_gene_of_interest <- ld_goi %>%
 # Order the 'group' factor 
 ld_gene_of_interest$group <- factor(ld_gene_of_interest$group, levels = c("v", "mp", "lp", "el", "l"))
 
-#log10
-ggplot(ld_gene_of_interest, aes(x = group, y = value, fill = group)) +
+#Log
+ld_gene_of_interest$value_log10 <- log10(ld_gene_of_interest$value)
+ggplot(ld_gene_of_interest, aes(x = group, y = value_log10, fill = group)) +
   geom_boxplot() +
   theme_minimal() +
   geom_point(color="black", size=2, position = position_dodge(width = 0.75)) +
@@ -75,8 +76,8 @@ ggplot(ld_gene_of_interest, aes(x = group, y = value, fill = group)) +
   labs(title = paste("Expression of", goi,"|",goi_model_vector),
        x = "Time Point",
        y = bquote(~Log[10]~ 'Normalized Counts')) +
-  scale_y_continuous(trans = 'log10') +
   scale_fill_manual(values = myColors)
+
 
 #nolog
 ggplot(ld_gene_of_interest, aes(x = group, y = value, fill = group)) +
