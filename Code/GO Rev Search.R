@@ -1,5 +1,6 @@
 library(jsonlite)
 # Import From JSON #############################################################
+# MYC-19030024-MESC-mouse
 url <- "https://maayanlab.cloud/Harmonizome/api/1.0/gene_set/MYC-19030024-MESC-mouse/CHEA+Transcription+Factor+Binding+Site+Profiles"
 data <- fromJSON(url)
 str(data) # Structure may change based on import site, adjust GOI path as needed
@@ -22,6 +23,19 @@ chrom_genes$ensembl <- mapIds(org.Bt.eg.db,
                        keytype = "SYMBOL",
                        multivals = 'first')
 GOI <- c(chrom_genes$ensembl)
+
+##########################################################
+# Myc Targets V1 hallmark MSigDB
+url <- "C:/Users/12142/Downloads/HALLMARK_MYC_TARGETS_V1.v2023.2.Hs.json"
+data <- fromJSON(url)
+str(data) # Structure may change based on import site, adjust GOI path as needed
+GOI <- data$HALLMARK_MYC_TARGETS_V1$geneSymbols
+GOI <- mapIds(org.Bt.eg.db,
+              keys = GOI,
+              column = "ENSEMBL",
+              keytype = "SYMBOL",
+              multivals = 'first')
+
 
 # Filter for GOI ###############################################################
 filtered_motif_index <- lapply(motif_index, function(genes) {
@@ -53,8 +67,8 @@ final_df <- data.frame(Motif = smi_df$Motif, Proportion = proportions)
 final_df$Proportion <- final_df$Proportion * 100 # Proportion is a % of 100
 final_df <- final_df[order(-final_df$Proportion),]
 print(final_df)
-
-filtered_motif_index[['SSDI']]
+smi
+filtered_motif_index[['ISDS']]
 
 
 

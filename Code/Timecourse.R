@@ -88,7 +88,7 @@ contrast_results$`v to mp`[rownames(contrast_results$`v to mp`) == "ENSBTAG00000
 
 
 
-
+# Seperate object for mapped motif index ###############################################
 mapped_motif_index <- list()
 for(model in names(motif_index)) {
   ensembl_ids <- motif_index[[model]]
