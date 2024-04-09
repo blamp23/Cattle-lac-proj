@@ -2,11 +2,11 @@ library(readr)
 library(DESeq2)
 
 # Read the CSV file
-Filtered_Raw_Counts_fix <- read_csv("Filtered_Raw_Counts_fix.csv")
-Filtered_Raw_Counts_fix <- as.data.frame(Filtered_Raw_Counts_fix)
-row.names(Filtered_Raw_Counts_fix) <- Filtered_Raw_Counts_fix$...1
-Filtered_Raw_Counts_fix <- Filtered_Raw_Counts_fix[, -1]
-df <- as.data.frame(t(Filtered_Raw_Counts_fix))
+file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Filtered_Raw_Counts_fix.csv'
+df <- read.csv(file_path)
+row.names(df) <- df$X
+df <- df[-1]
+df <- t(df)
 
 
 samples <- data.frame(
@@ -24,4 +24,5 @@ dds <- DESeqDataSetFromMatrix(
 )
 
 dds <- DESeq(dds)
+
 normalized_counts <- counts(dds, normalized = TRUE)
