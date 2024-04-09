@@ -15,7 +15,6 @@ samples <- data.frame(
 )
 
 
-
 df <- as.matrix(df)
 dds <- DESeqDataSetFromMatrix(
   countData = df,
