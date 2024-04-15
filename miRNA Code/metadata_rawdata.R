@@ -25,3 +25,4 @@ dds <- DESeqDataSetFromMatrix(
 dds <- DESeq(dds)
 
 normalized_counts <- counts(dds, normalized = TRUE)
+
