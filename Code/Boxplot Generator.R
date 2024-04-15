@@ -41,7 +41,7 @@ ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "valu
 ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
 
 # Specify gene of interest######################################################################
-goi <- 'MRPL16'
+goi <- 'NAPRT'
 goi_model_vector <- ""
 
 # Iterate through mapped_motif_index to find the model vector for goi
@@ -98,12 +98,14 @@ ggplot(ld_gene_of_interest, aes(x = group, y = value, fill = group)) +
 
 #ISDS ISDD
 
+contrast_results$`mp to lp`[rownames(contrast_results$`mp to lp`) == "ENSBTAG00000004836", ]
 
 
+gene_symbols
 
+str(gene_symbols)
 
-
-
+which(gene_symbols == "NARPT")
 
 
 

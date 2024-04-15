@@ -1,19 +1,16 @@
 # Libraries ##########################################################################
 library(DESeq2)
 library(dplyr)
+library(AnnotationDbi)
+library(org.Bt.eg.db)
 
 # Normalized Count table and dds object from DESeq are needed to run code
-col_names <- c(rep("V", 11),
-               rep("MP", 8),
-               rep("LP", 8),
-               rep("EL", 8),
-               rep("PL", 13))
-names(normalized_counts) <- col_names
-
 
 # Time-point Averages of Normalized Counts ######################################
 normalized_counts_df <- as.data.frame(normalized_counts)
-
+# Define/assign column names
+col_names <- c(rep("el", 7), rep("l", 7), rep("lp", 7), rep("mp", 7), rep("v", 7))
+names(normalized_counts_df) <- col_names
 
 # Prepare an empty data frame for storing averages, with correct dimensions and column names
 averages_df <- data.frame(matrix(ncol = length(unique(col_names)), nrow = nrow(normalized_counts_df)))
@@ -32,19 +29,19 @@ head(averages_df)
 
 # pairwise comparisons, hypothesis testing, and assignment of expression pattern ###################################
 contrasts <- list(
-  c("condition", "PL", "V"),
+  c("condition", "l", "v"),
   #
-  c("condition", "EL", "V"),
-  c("condition", "PL", "MP"),
+  c("condition", "el", "v"),
+  c("condition", "l", "mp"),
   #
-  c("condition", "LP", "V"),
-  c("condition", "EL", "MP"),
-  c("condition", "PL", "LP"),
+  c("condition", "lp", "v"),
+  c("condition", "el", "mp"),
+  c("condition", "l", "lp"),
   #
-  c("condition", "MP", "V"),
-  c("condition", "LP", "MP"),
-  c("condition", "EL", "LP"),
-  c("condition", "PL", "EL")
+  c("condition", "mp", "v"),
+  c("condition", "lp", "mp"),
+  c("condition", "el", "lp"),
+  c("condition", "l", "el")
 )
 
 contrast_results <- list()
@@ -52,9 +49,7 @@ contrast_results <- list()
 # DE for pairs in contrasts
 for (i in seq_along(contrasts)) {
   contrast = contrasts[[i]]
-  res <- results(dds,
-                 independentFiltering = FALSE,
-                 contrast = contrast)
+  res <- results(dds, contrast=contrast)
   
   # Determine if the mean expression increases or decreases
   condition1_mean <- averages_df[[contrast[3]]]  # Mean for the first condition
@@ -66,8 +61,6 @@ for (i in seq_along(contrasts)) {
   
   contrast_results[[paste(contrast[3], "to", contrast[2])]] <- res
 }
-
-
 # Generation of expression motif ###############################################
 
 # Initialize a dataframe with gene names
@@ -77,7 +70,7 @@ combined_results <- data.frame(gene=rownames(contrast_results[[1]]))
 for (i in seq_along(contrast_results)) {
   contrast_name <- names(contrast_results)[i]  # Get the name of the current contrast
   # Create a temporary dataframe with genes and their expression changes for the current contrast
-  temp_df <- data.frame(gene=rownames(contrast_results[[i]]),
+  temp_df <- data.frame(gene=rownames(contrast_results[[i]]), 
                         expressionChange=contrast_results[[i]]$expressionChange)
   colnames(temp_df)[2] <- contrast_name  # Rename the second column to the current contrast name
   # Merge the temporary dataframe with the combined_results dataframe
@@ -85,10 +78,10 @@ for (i in seq_along(contrast_results)) {
 }
 
 # Concatenate expression patterns to make model vector
-combined_results$modelVector <- apply(combined_results[, -1], 1,
+combined_results$modelVector <- apply(combined_results[, -1], 1, 
                                       function(x) paste(x, collapse = ""))
-head(combined_results)
-# for Quaternary tree structure ###############################################################
+
+# for quartenary tree structure ###############################################################
 combined_results$primary <- combined_results[,2]
 combined_results$secondary <- paste0(combined_results[,3], combined_results[,4])
 combined_results$tertiary <- paste0(combined_results[,5], combined_results[,6], combined_results[,7])
@@ -98,16 +91,36 @@ head(combined_results)
 
 # Genes indexed by model vector ################################################
 motif_index <- list()
+vector <- paste0(combined_results$tertiary)
+
 # Loop through each unique modelVector
-for(model in unique(combined_results$modelVector)) {
+for(model in unique(vector)) {
   # Subset the genes that match the current modelVector
-  genes <- combined_results$gene[combined_results$modelVector == model]
+  genes <- combined_results$gene[vector == model]
   # Store
   motif_index[[model]] <- genes
 }
-
-# Search commands ##############################################################
 summary(motif_index)
-contrast_results$`LP to EL`[rownames(contrast_results$`LP to EL`) == "bta.miR.2285d", ]
-motif_index$ISNAS
+
+contrast_results$`v to el`[rownames(contrast_results$`v to el`) == "ENSBTAG00000014642", ]
+
+
+
+# Seperate object for mapped motif index ###############################################
+mapped_motif_index <- list()
+for(model in names(motif_index)) {
+  ensembl_ids <- motif_index[[model]]
+  gene_symbols <- mapIds(org.Bt.eg.db,
+                         keys = ensembl_ids,
+                         column = "SYMBOL",
+                         keytype = "ENSEMBL",
+                         multivals = 'first')
+  mapped_motif_index[[model]] <- gene_symbols
+}
+
+# Check the mapped gene symbols
+summary(motif_index)
+mapped_motif_index$SIS
+motif_index$SIS
+write.table(mapped_motif_index$DSI, file = "mapped_motif_index_SIS.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 

@@ -71,6 +71,7 @@ for (i in seq_along(contrast_results)) {
 # Concatenate expression patterns to make model vector
 combined_results$modelVector <- apply(combined_results[, -1], 1, 
                                       function(x) paste(x, collapse = ""))
+
 head(combined_results)
 
 # Genes indexed by model vector ################################################
@@ -84,7 +85,7 @@ for(model in unique(combined_results$modelVector)) {
 }
 summary(motif_index)
 
-contrast_results$`v to mp`[rownames(contrast_results$`v to mp`) == "ENSBTAG00000019262", ]
+contrast_results$`v to el`[rownames(contrast_results$`v to el`) == "ENSBTAG00000014642", ]
 
 
 
@@ -101,5 +102,6 @@ for(model in names(motif_index)) {
 }
 
 # Check the mapped gene symbols
-mapped_motif_index
-
+summary(motif_index)
+mapped_motif_index$
+motif_index$
