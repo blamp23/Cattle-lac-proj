@@ -40,6 +40,9 @@ colnames(df) <- new_colnames
 colnames(df)[28] <- "lp_610"  # lp_610 and el_610 are swapped samples
 colnames(df)[21] <- "el_610"
 samples <- samples[colnames(df), ]
+tnames <- c(rep(1, 7), rep(2, 7), rep(3, 7), rep(4, 7), rep(5, 7))
+samples$time <- tnames
+
 # Filter Method A ##############################################################
 # originaly 27607 genes
 # filtered to 17344 genes

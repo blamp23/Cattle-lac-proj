@@ -69,7 +69,7 @@ final_df$Proportion <- final_df$Proportion * 100 # Proportion is a % of 100
 final_df <- final_df[order(-final_df$Proportion),]
 print(final_df)
 smi
-filtered_motif_index[['ISDS']]
+filtered_motif_index[['SDD']]
 
 
 

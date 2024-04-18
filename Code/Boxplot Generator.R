@@ -41,7 +41,7 @@ ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "valu
 ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
 
 # Specify gene of interest######################################################################
-goi <- 'NAPRT'
+goi <- 'MRPL9'
 goi_model_vector <- ""
 
 # Iterate through mapped_motif_index to find the model vector for goi
@@ -105,7 +105,7 @@ gene_symbols
 
 str(gene_symbols)
 
-which(gene_symbols == "NARPT")
+which(gene_symbols == "CSN3")
 
 
 

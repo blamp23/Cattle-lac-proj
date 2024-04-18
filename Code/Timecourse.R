@@ -1,4 +1,4 @@
-# Libraries ##########################################################################
+# Libraries ####################################################################
 library(DESeq2)
 library(dplyr)
 library(AnnotationDbi)
@@ -104,4 +104,4 @@ for(model in names(motif_index)) {
 # Check the mapped gene symbols
 summary(motif_index)
 mapped_motif_index$
-motif_index$
+motif_index$ISDS

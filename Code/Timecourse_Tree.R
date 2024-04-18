@@ -81,7 +81,7 @@ for (i in seq_along(contrast_results)) {
 combined_results$modelVector <- apply(combined_results[, -1], 1, 
                                       function(x) paste(x, collapse = ""))
 
-# for quartenary tree structure ###############################################################
+# for Quaternary tree structure ###############################################################
 combined_results$primary <- combined_results[,2]
 combined_results$secondary <- paste0(combined_results[,3], combined_results[,4])
 combined_results$tertiary <- paste0(combined_results[,5], combined_results[,6], combined_results[,7])
@@ -91,7 +91,13 @@ head(combined_results)
 
 # Genes indexed by model vector ################################################
 motif_index <- list()
-vector <- paste0(combined_results$tertiary)
+x <- combined_results
+vector <- paste0(x$`v to mp`,
+                 x$`v to lp`,
+                 x$`mp to el`,
+                 x$`mp to l`,
+                 x$`lp to el`,
+                 x$`lp to l`)
 
 # Loop through each unique modelVector
 for(model in unique(vector)) {
@@ -120,7 +126,8 @@ for(model in names(motif_index)) {
 
 # Check the mapped gene symbols
 summary(motif_index)
-mapped_motif_index$SIS
+mapped_motif_index$ISIS
 motif_index$SIS
-write.table(mapped_motif_index$DSI, file = "mapped_motif_index_SIS.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+t1 <- write.table(mapped_motif_index$IISII)
+write.table(mapped_motif_index$IIS, file = "mapped_motif_index_SII.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 
