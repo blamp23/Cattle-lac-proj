@@ -5,23 +5,31 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
+
 ncdf <- normalized_counts
+ncdf$modelVector <- NULL
+
 # Save original Ensembl IDs
 original_ensembl_ids <- row.names(ncdf)
 
 # Map
+gene_symbols <- list()
 gene_symbols <- mapIds(org.Bt.eg.db,
                        keys = original_ensembl_ids,
                        column = "SYMBOL",
                        keytype = "ENSEMBL",
                        multivals = 'first')
 
-# Replace NAs with the original Ensembl ID
-gene_symbols[is.na(gene_symbols)] <- original_ensembl_ids[is.na(gene_symbols)]
 
-# Update row names in ncdf
-row.names(ncdf) <- gene_symbols
-ncdf <- as.data.frame(ncdf)
+unique_gene_symbols <- gene_symbols
+duplicates <- duplicated(gene_symbols) | duplicated(gene_symbols, fromLast = TRUE)
+unique_gene_symbols[duplicates] <- paste(gene_symbols[duplicates], original_ensembl_ids[duplicates], sep = "_")
+
+# Replace NAs with the original Ensembl ID (if any NAs remain)
+unique_gene_symbols[is.na(unique_gene_symbols)] <- original_ensembl_ids[is.na(unique_gene_symbols)]
+
+# Update row names in ncdf with the unique gene symbols
+row.names(ncdf) <- unique_gene_symbols
 ncdf$gene <- rownames(ncdf)
 
 
@@ -41,7 +49,7 @@ ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "valu
 ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
 
 # Specify gene of interest######################################################################
-goi <- 'MRPL9'
+goi <- 'ESR2'
 goi_model_vector <- ""
 
 # Iterate through mapped_motif_index to find the model vector for goi

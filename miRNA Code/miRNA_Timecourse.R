@@ -108,13 +108,24 @@ head(combined_results)
 
 # Genes indexed by model vector ################################################
 motif_index <- list()
+x <- combined_results
+vector <- paste0(x$`V to MP`,
+                 x$`V to LP`,
+                 x$`MP to EL`,
+                 x$`LP to EL`,
+                 x$`MP to PL`,
+                 x$`LP to PL`,
+                 x$`EL to PL`)
+
 # Loop through each unique modelVector
-for(model in unique(combined_results$modelVector)) {
+for(model in unique(vector)) {
   # Subset the genes that match the current modelVector
-  genes <- combined_results$gene[combined_results$modelVector == model]
+  genes <- combined_results$gene[vector == model]
   # Store
   motif_index[[model]] <- genes
 }
+summary(motif_index)
+mi_miRNA <- motif_index
 
 # Search commands ##############################################################
 summary(motif_index)

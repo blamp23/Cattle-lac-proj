@@ -115,15 +115,7 @@ for(model in unique(vector)) {
   motif_index[[model]] <- genes
 }
 summary(motif_index)
-
-
-
-contrast_results$`lp to el`[rownames(contrast_results$`lp to el`) == 'ENSBTAG00000007695'
-, ]
-
-View(contrast_results
-     )
-
+mi_mrna <- motif_index
 
 # Seperate object for mapped motif index ###############################################
 mapped_motif_index <- list()
@@ -136,6 +128,7 @@ for(model in names(motif_index)) {
                          multivals = 'first')
   mapped_motif_index[[model]] <- gene_symbols
 }
+mmi_mrna <- mapped_motif_index
 
 # Check the mapped gene symbols
 summary(motif_index)
