@@ -39,9 +39,19 @@ colnames(df) <- new_colnames
 
 colnames(df)[28] <- "lp_610"  # lp_610 and el_610 are swapped samples
 colnames(df)[21] <- "el_610"
+
+el_610 <- which(names(df) == "el_610")
+lp_610 <- which(names(df) == "lp_610")
+
+# Create a new vector of column names with the positions of these two columns swapped
+new_order <- names(df)
+new_order[c(el_610, lp_610)] <- new_order[c(lp_610, el_610)]
+
+# Reorder the columns in the DataFrame
+df <- df[, new_order]
+
 samples <- samples[colnames(df), ]
-tnames <- c(rep(1, 7), rep(2, 7), rep(3, 7), rep(4, 7), rep(5, 7))
-samples$time <- tnames
+
 
 # Filter Method A ##############################################################
 # originaly 27607 genes
@@ -82,7 +92,6 @@ res <- results(dds)
 
 dds_count <- estimateSizeFactors(dds)
 normalized_counts <- counts(dds_count, normalized=TRUE)
-ordered_column_indices <- order(colnames(normalized_counts))
-normalized_counts <- normalized_counts[, ordered_column_indices]
+
 
 
