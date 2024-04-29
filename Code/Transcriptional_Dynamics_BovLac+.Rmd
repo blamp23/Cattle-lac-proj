@@ -1,15 +1,47 @@
-# Libraries #####################################################################
+---
+title: "Transcriptional Dynamics of Milk Produiction in Bovine Mammary Glands"
+author: "Benji Lamp"
+date: "4/24/24"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+    theme: united
+    highlights: tango
+---
+
+# Introduction
+It is understood that the mammary gland in cattle undergoes extensive morphological and physiological transformations to facilitate the production of milk. These changes are regulated at the genetic and epigenetic level, with specific patterns of expression driving maturation of the gland. This study aims to uncover the temporal expression patterns of mRNA in bovine mammary glands by performing timewise differential expression of sequencing data, then clustering based on temporal expression pattern.
+
+# Setup {.tabset}
+
+### Libraries
+```{r, message=FALSE, warning=FALSE}
 library(DESeq2)
-library(sva)
 library(dplyr)
+library(AnnotationDbi)
+library(org.Bt.eg.db)
+library(sva)
 library(readxl)
 library(tidyr)
-# Raw Count Data From Galaxy #####################################################
+library(knitr)
+library(kableExtra)
+```
+
+### Data
+Import raw count files from github
+```{r}
 file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Raw_Cattle_Counts.tabular'
 df <- read.delim(file_path, header = TRUE, row.names = 1)
 df <- df[-1]
+```
 
 
+# Filtering/loading {.tabset}
+
+## Metadata
+Creation of a dataframe that holds information about the experiment, as well as the batch effects
+```{r}
 samples <- data.frame(
   row.names = c("v_468", "v_502", "v_504", "v_507", "v_509", "v_598", "v_610", 
                 "mp_468", "mp_502", "mp_504", "mp_507", "mp_509", "mp_598", "mp_610",
@@ -42,7 +74,10 @@ colnames(df)[21] <- "el_610"
 samples <- samples[colnames(df), ]
 tnames <- c(rep(1, 7), rep(2, 7), rep(3, 7), rep(4, 7), rep(5, 7))
 samples$time <- tnames
+```
 
+## Filtering
+```{r}
 # Filter Method A ##############################################################
 # originaly 27607 genes
 # filtered to 17344 genes
@@ -65,24 +100,53 @@ gene_inclusion_filter <- rowSums(do.call(cbind, high_exp_counts)) >= 1 # If 1/5 
 
 # Step 4: Filter Genes
 df <- df[gene_inclusion_filter, ]
-# Deseq2 - ComBat #########################################################################
-count_matrix <- as.matrix(df)
-cdf <- ComBat_seq(count_matrix, batch = samples$batch, group = samples$condition)
+```
 
-dds <- DESeqDataSetFromMatrix(
-  countData = cdf,
-  colData = samples,
-  design = ~ condition
-)
+## Filtered Counts
+```{r, echo=FALSE, results='asis'}
+library(knitr)
+library(kableExtra)
+
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(samples, caption = "Sample Data") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Displaying the first few rows of df
+df_head <- head(df)
+
+# Splitting df into two halves if it has many columns
+half_col <- ceiling(ncol(df_head) / 2)
+df_head_first_part <- df_head[, 1:half_col]
+df_head_second_part <- df_head[, (half_col+1):ncol(df_head)]
+
+# Display the first half
+kable(df_head_first_part, caption = "Filtered Counts") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+# Display the second half
+kable(df_head_second_part) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
 
 
-dds <- DESeq(dds)
-res <- results(dds)
 
 
-dds_count <- estimateSizeFactors(dds)
-normalized_counts <- counts(dds_count, normalized=TRUE)
-ordered_column_indices <- order(colnames(normalized_counts))
-normalized_counts <- normalized_counts[, ordered_column_indices]
+
+
+
+
+
+
+
 
 

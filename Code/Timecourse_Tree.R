@@ -92,12 +92,14 @@ head(combined_results)
 # Genes indexed by model vector ################################################
 motif_index <- list()
 x <- combined_results
+vector <- x$modelVector
 vector <- paste0(x$`v to mp`,
                  x$`v to lp`,
                  x$`mp to el`,
-                 x$`mp to l`,
                  x$`lp to el`,
-                 x$`lp to l`)
+                 x$`mp to l`,
+                 x$`lp to l`,
+                 x$`el to l`)
 
 # Loop through each unique modelVector
 for(model in unique(vector)) {
@@ -108,8 +110,13 @@ for(model in unique(vector)) {
 }
 summary(motif_index)
 
-contrast_results$`v to el`[rownames(contrast_results$`v to el`) == "ENSBTAG00000014642", ]
 
+
+contrast_results$`lp to el`[rownames(contrast_results$`lp to el`) == 'ENSBTAG00000007695'
+, ]
+
+View(contrast_results
+     )
 
 
 # Seperate object for mapped motif index ###############################################
@@ -128,6 +135,5 @@ for(model in names(motif_index)) {
 summary(motif_index)
 mapped_motif_index$ISIS
 motif_index$SIS
-t1 <- write.table(mapped_motif_index$IISII)
-write.table(mapped_motif_index$IIS, file = "mapped_motif_index_SII.txt", sep = "\t", quote = FALSE, row.names = FALSE)
+write.table(mapped_motif_index$IIDDD, file = "mapped_motif_index_SII.txt", sep = "\t", quote = FALSE, row.names = FALSE)
 

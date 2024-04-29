@@ -1,3 +1,5 @@
+
+
 # Libraries ##########################################################################
 library(DESeq2)
 library(dplyr)
@@ -49,23 +51,31 @@ contrasts <- list(
 
 contrast_results <- list()
 
-# DE for pairs in contrasts
 for (i in seq_along(contrasts)) {
   contrast = contrasts[[i]]
   res <- results(dds,
                  independentFiltering = FALSE,
                  contrast = contrast)
   
-  # Determine if the mean expression increases or decreases
-  condition1_mean <- averages_df[[contrast[3]]]  # Mean for the first condition
-  condition2_mean <- averages_df[[contrast[2]]]  # Mean for the second condition
-  expressionDirection <- ifelse(condition1_mean < condition2_mean, "I", "D")
+  # Get the means for the conditions, ensure they are single values
+  condition1_mean <- mean(averages_df[[contrast[3]]])  # Calculate mean if not already a single value
+  condition2_mean <- mean(averages_df[[contrast[2]]])  # Calculate mean if not already a single value
   
-  # Hypothesis test, FTR null assign 'S', Rej null assign I/D
+  # Check if both means are less than 100
+  if (condition1_mean < 100 & condition2_mean < 100) {
+    expressionDirection <- "S"
+  } else {
+    # Determine if the mean expression increases or decreases
+    expressionDirection <- ifelse(condition1_mean < condition2_mean, "I", "D")
+  }
+  
+  # Hypothesis test: if FTR null assign 'S', else assign I/D based on expressionDirection
   res$expressionChange <- ifelse(res$padj > 0.05, "S", expressionDirection)
   
+  # Store results in a list
   contrast_results[[paste(contrast[3], "to", contrast[2])]] <- res
 }
+
 
 
 # Generation of expression motif ###############################################
@@ -110,4 +120,39 @@ for(model in unique(combined_results$modelVector)) {
 summary(motif_index)
 contrast_results$`LP to EL`[rownames(contrast_results$`LP to EL`) == "bta.miR.2285d", ]
 motif_index$ISNAS
+
+# Add vector Column to DF
+
+# Convert row names to a column for joining
+normalized_counts_df$gene <- rownames(normalized_counts_df)
+
+# Assuming combined_results also has gene names as the first column
+# Create a new data frame with only gene and modelVector columns
+model_vector_df <- data.frame(gene = combined_results$gene, modelVector = combined_results$modelVector)
+
+# Merge the data frames
+normalized_counts_df1 <- merge(normalized_counts_df, model_vector_df, by = "gene", all.x = TRUE)
+
+# Now normalized_counts_df should have the modelVector column added
+############################
+# Create a new workbook
+wb <- createWorkbook()
+
+# Loop through each item in the list of lists and create a sheet
+for (name in names(motif_index)) {
+  # Create a new sheet in the workbook with the name of the list key
+  addWorksheet(wb, name)
+  
+  # Write the vector of genes into the sheet
+  writeData(wb, name, x = motif_index[[name]], startCol = 1, startRow = 1)
+}
+
+# Define the file path and name of your Excel file
+file_path <- "C:/Users/12142/Downloads/miRNA_motif_index.xlsx"
+
+# Save the workbook
+saveWorkbook(wb, file_path, overwrite = TRUE)
+
+
+
 
