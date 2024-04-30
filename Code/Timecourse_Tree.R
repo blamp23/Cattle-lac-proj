@@ -7,7 +7,6 @@ library(org.Bt.eg.db)
 # Normalized Count table and dds object from DESeq are needed to run code
 
 # Time-point Averages of Normalized Counts ######################################
-norm_count <- as.data.frame(normalized_counts)
 normalized_counts_df <- as.data.frame(normalized_counts)
 # Define/assign column names
 col_names <- c(rep("v", 7), rep("mp", 7), rep("lp", 7), rep("el", 7), rep("l", 7))
@@ -98,7 +97,6 @@ head(normalized_counts)
 # Genes indexed by model vector ################################################
 motif_index <- list()
 x <- combined_results
-vector <- x$modelVector
 vector <- paste0(x$`v to mp`,
                  x$`v to lp`,
                  x$`mp to el`,

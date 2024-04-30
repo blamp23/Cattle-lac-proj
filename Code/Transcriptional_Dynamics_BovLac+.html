@@ -1726,8 +1726,9 @@ maturation of the gland. This study aims to uncover the temporal
 expression patterns of mRNA in bovine mammary glands by performing
 timewise differential expression of sequencing data, then clustering
 based on temporal expression pattern.</p>
-<div id="setup" class="section level2 tabset">
-<h2 class="tabset">Setup</h2>
+</div>
+<div id="setup" class="section level1 tabset">
+<h1 class="tabset">Setup</h1>
 <div id="libraries" class="section level3">
 <h3>Libraries</h3>
 <pre class="r"><code>library(DESeq2)
@@ -1748,45 +1749,83 @@ df &lt;- read.delim(file_path, header = TRUE, row.names = 1)
 df &lt;- df[-1]</code></pre>
 </div>
 </div>
-</div>
 <div id="filteringloading" class="section level1 tabset">
 <h1 class="tabset">Filtering/loading</h1>
 <div id="metadata" class="section level2">
 <h2>Metadata</h2>
 <p>Creation of a dataframe that holds information about the experiment,
 as well as the batch effects</p>
-<pre class="r"><code>samples &lt;- data.frame(
-  row.names = c(&quot;v_468&quot;, &quot;v_502&quot;, &quot;v_504&quot;, &quot;v_507&quot;, &quot;v_509&quot;, &quot;v_598&quot;, &quot;v_610&quot;, 
-                &quot;mp_468&quot;, &quot;mp_502&quot;, &quot;mp_504&quot;, &quot;mp_507&quot;, &quot;mp_509&quot;, &quot;mp_598&quot;, &quot;mp_610&quot;,
-                &quot;lp_468&quot;, &quot;lp_502&quot;, &quot;lp_504&quot;, &quot;lp_509&quot;, &quot;lp_507&quot;, &quot;lp_598&quot;, &quot;lp_610&quot;,
-                &quot;el_468&quot;, &quot;el_502&quot;, &quot;el_504&quot;, &quot;el_507&quot;, &quot;el_509&quot;, &quot;el_598&quot;, &quot;el_610&quot;,
-                &quot;l_468&quot;, &quot;l_502&quot;, &quot;l_504&quot;, &quot;l_507&quot;, &quot;l_509&quot;, &quot;l_598&quot;, &quot;l_610&quot;),
-  condition = c(rep(&quot;v&quot;, 7), rep(&quot;mp&quot;, 7), rep(&quot;lp&quot;, 7), rep(&quot;el&quot;, 7), rep(&quot;l&quot;, 7)),
-  animal = c(468, 502, 504, 507, 509, 598, 610,
-             468, 502, 504, 507, 509, 598, 610,
-             468, 502, 504, 509, 507, 598, 610,
-             468, 502, 504, 507, 509, 598, 610,
-             468, 502, 504, 507, 509, 598, 610),
-  batch = c(1, 1, 1, 1, 1, 1, 1, 
-            0, 1, 0, 1, 0, 0, 0,
-            0, 1, 0, 0, 1, 0, 0,
-            0, 1, 0, 1, 0, 0, 0, 
-            1, 1, 1, 1, 1, 1, 1 ),
-  BCM = c(1, 1, 1, 1, 1, 1, 1,
-          0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0,
-          1, 1, 1, 1, 1, 1, 1)
-)
-
-new_colnames &lt;- c(row.names(samples))
-colnames(df) &lt;- new_colnames
-
-colnames(df)[28] &lt;- &quot;lp_610&quot;  # lp_610 and el_610 are swapped samples
-colnames(df)[21] &lt;- &quot;el_610&quot;
-samples &lt;- samples[colnames(df), ]
-tnames &lt;- c(rep(1, 7), rep(2, 7), rep(3, 7), rep(4, 7), rep(5, 7))
-samples$time &lt;- tnames</code></pre>
+<pre><code>##        condition animal batch BCM
+## v_468          v    468     1   1
+## v_502          v    502     1   1
+## v_504          v    504     1   1
+## v_507          v    507     1   1
+## v_509          v    509     1   1
+## v_598          v    598     1   1
+## v_610          v    610     1   1
+## mp_468        mp    468     0   0
+## mp_502        mp    502     1   0
+## mp_504        mp    504     0   0
+## mp_507        mp    507     1   0
+## mp_509        mp    509     0   0
+## mp_598        mp    598     0   0
+## mp_610        mp    610     0   0
+## lp_468        lp    468     0   0
+## lp_502        lp    502     1   0
+## lp_504        lp    504     0   0
+## lp_509        lp    509     0   0
+## lp_507        lp    507     1   0
+## lp_598        lp    598     0   0
+## lp_610        lp    610     0   0
+## el_468        el    468     0   0
+## el_502        el    502     1   0
+## el_504        el    504     0   0
+## el_507        el    507     1   0
+## el_509        el    509     0   0
+## el_598        el    598     0   0
+## el_610        el    610     0   0
+## l_468          l    468     1   1
+## l_502          l    502     1   1
+## l_504          l    504     1   1
+## l_507          l    507     1   1
+## l_509          l    509     1   1
+## l_598          l    598     1   1
+## l_610          l    610     1   1</code></pre>
+<pre><code>##                    v_468 v_502 v_504 v_507 v_509 v_598 v_610 mp_468 mp_502
+## ENSBTAG00000000005   165   160   281   234   331   285   215    116    258
+## ENSBTAG00000000008     0     0     0     0     1     0     0      0      0
+## ENSBTAG00000000009    43   101    39    47    42   105    67    105    114
+## ENSBTAG00000000010    90    98   194   209   376   172   219   1276    143
+## ENSBTAG00000000011    20     4    28    38    32    64    36     23     14
+## ENSBTAG00000000012    92    92   123   142   275   197   180     53    142
+##                    mp_504 mp_507 mp_509 mp_598 mp_610 lp_468 lp_502 lp_504
+## ENSBTAG00000000005    223    515    414    332    173    162    347    510
+## ENSBTAG00000000008      5      0      1     10      0      7      0      3
+## ENSBTAG00000000009    124    119    207    411    200    185     80    103
+## ENSBTAG00000000010    307    439    527    321    830   1414    205    378
+## ENSBTAG00000000011     34     39     18     77     40     43     19     10
+## ENSBTAG00000000012    181    273    190    213    110     88    169    327
+##                    lp_509 lp_507 lp_598 lp_610 el_468 el_502 el_504 el_507
+## ENSBTAG00000000005    292    396    134     78    277    317    460    554
+## ENSBTAG00000000008      0      0      2      0      8      0      7      0
+## ENSBTAG00000000009     83    106    148     31     83     50    132     30
+## ENSBTAG00000000010    484    294    514   1154    947    188    603    849
+## ENSBTAG00000000011     23     27     47     75      3      9      9     41
+## ENSBTAG00000000012    146    207    143    145     70     59    244     76
+##                    el_509 el_598 el_610 l_468 l_502 l_504 l_507 l_509 l_598
+## ENSBTAG00000000005    276    437    328   199   236   478   148   196   153
+## ENSBTAG00000000008      5     60      7     0     0     0     0     0     0
+## ENSBTAG00000000009     77     82     98    33    51    75    53    26    42
+## ENSBTAG00000000010   1024    855   1167   211   260   384   264   269   226
+## ENSBTAG00000000011     26     26      0     3    15    10     9    10    14
+## ENSBTAG00000000012     58     44    125    48    66   116    55    45    45
+##                    l_610
+## ENSBTAG00000000005   203
+## ENSBTAG00000000008     0
+## ENSBTAG00000000009    60
+## ENSBTAG00000000010   243
+## ENSBTAG00000000011     9
+## ENSBTAG00000000012    64</code></pre>
 </div>
 <div id="filtering" class="section level2">
 <h2>Filtering</h2>
@@ -1841,9 +1880,6 @@ batch
 <th style="text-align:right;">
 BCM
 </th>
-<th style="text-align:right;">
-time
-</th>
 </tr>
 </thead>
 <tbody>
@@ -1856,9 +1892,6 @@ v
 </td>
 <td style="text-align:right;">
 468
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:right;">
 1
@@ -1883,9 +1916,6 @@ v
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-1
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1896,9 +1926,6 @@ v
 </td>
 <td style="text-align:right;">
 504
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:right;">
 1
@@ -1923,9 +1950,6 @@ v
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-1
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1936,9 +1960,6 @@ v
 </td>
 <td style="text-align:right;">
 509
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:right;">
 1
@@ -1963,9 +1984,6 @@ v
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-1
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -1976,9 +1994,6 @@ v
 </td>
 <td style="text-align:right;">
 610
-</td>
-<td style="text-align:right;">
-1
 </td>
 <td style="text-align:right;">
 1
@@ -2003,9 +2018,6 @@ mp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-2
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2022,9 +2034,6 @@ mp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-2
 </td>
 </tr>
 <tr>
@@ -2043,9 +2052,6 @@ mp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-2
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2062,9 +2068,6 @@ mp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-2
 </td>
 </tr>
 <tr>
@@ -2083,9 +2086,6 @@ mp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-2
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2102,9 +2102,6 @@ mp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-2
 </td>
 </tr>
 <tr>
@@ -2123,9 +2120,6 @@ mp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-2
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2142,9 +2136,6 @@ lp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-3
 </td>
 </tr>
 <tr>
@@ -2163,9 +2154,6 @@ lp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-3
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2182,9 +2170,6 @@ lp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-3
 </td>
 </tr>
 <tr>
@@ -2203,9 +2188,6 @@ lp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-3
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2222,9 +2204,6 @@ lp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-3
 </td>
 </tr>
 <tr>
@@ -2243,16 +2222,13 @@ lp
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-3
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-el_610
+lp_610
 </td>
 <td style="text-align:left;">
-el
+lp
 </td>
 <td style="text-align:right;">
 610
@@ -2262,9 +2238,6 @@ el
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-3
 </td>
 </tr>
 <tr>
@@ -2283,9 +2256,6 @@ el
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-4
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2302,9 +2272,6 @@ el
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-4
 </td>
 </tr>
 <tr>
@@ -2323,9 +2290,6 @@ el
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-4
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2342,9 +2306,6 @@ el
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-4
 </td>
 </tr>
 <tr>
@@ -2363,9 +2324,6 @@ el
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-4
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2383,16 +2341,13 @@ el
 <td style="text-align:right;">
 0
 </td>
-<td style="text-align:right;">
-4
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
-lp_610
+el_610
 </td>
 <td style="text-align:left;">
-lp
+el
 </td>
 <td style="text-align:right;">
 610
@@ -2402,9 +2357,6 @@ lp
 </td>
 <td style="text-align:right;">
 0
-</td>
-<td style="text-align:right;">
-4
 </td>
 </tr>
 <tr>
@@ -2423,9 +2375,6 @@ l
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-5
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2442,9 +2391,6 @@ l
 </td>
 <td style="text-align:right;">
 1
-</td>
-<td style="text-align:right;">
-5
 </td>
 </tr>
 <tr>
@@ -2463,9 +2409,6 @@ l
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-5
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2482,9 +2425,6 @@ l
 </td>
 <td style="text-align:right;">
 1
-</td>
-<td style="text-align:right;">
-5
 </td>
 </tr>
 <tr>
@@ -2503,9 +2443,6 @@ l
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-5
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2523,9 +2460,6 @@ l
 <td style="text-align:right;">
 1
 </td>
-<td style="text-align:right;">
-5
-</td>
 </tr>
 <tr>
 <td style="text-align:left;">
@@ -2542,9 +2476,6 @@ l
 </td>
 <td style="text-align:right;">
 1
-</td>
-<td style="text-align:right;">
-5
 </td>
 </tr>
 </tbody>
@@ -2982,7 +2913,7 @@ lp_507
 lp_598
 </th>
 <th style="text-align:right;">
-el_610
+lp_610
 </th>
 <th style="text-align:right;">
 el_468
@@ -3003,7 +2934,7 @@ el_509
 el_598
 </th>
 <th style="text-align:right;">
-lp_610
+el_610
 </th>
 <th style="text-align:right;">
 l_468
@@ -3040,7 +2971,7 @@ ENSBTAG00000000005
 134
 </td>
 <td style="text-align:right;">
-328
+78
 </td>
 <td style="text-align:right;">
 277
@@ -3061,7 +2992,7 @@ ENSBTAG00000000005
 437
 </td>
 <td style="text-align:right;">
-78
+328
 </td>
 <td style="text-align:right;">
 199
@@ -3096,7 +3027,7 @@ ENSBTAG00000000008
 2
 </td>
 <td style="text-align:right;">
-7
+0
 </td>
 <td style="text-align:right;">
 8
@@ -3117,7 +3048,7 @@ ENSBTAG00000000008
 60
 </td>
 <td style="text-align:right;">
-0
+7
 </td>
 <td style="text-align:right;">
 0
@@ -3152,7 +3083,7 @@ ENSBTAG00000000009
 148
 </td>
 <td style="text-align:right;">
-98
+31
 </td>
 <td style="text-align:right;">
 83
@@ -3173,7 +3104,7 @@ ENSBTAG00000000009
 82
 </td>
 <td style="text-align:right;">
-31
+98
 </td>
 <td style="text-align:right;">
 33
@@ -3208,7 +3139,7 @@ ENSBTAG00000000010
 514
 </td>
 <td style="text-align:right;">
-1167
+1154
 </td>
 <td style="text-align:right;">
 947
@@ -3229,7 +3160,7 @@ ENSBTAG00000000010
 855
 </td>
 <td style="text-align:right;">
-1154
+1167
 </td>
 <td style="text-align:right;">
 211
@@ -3264,7 +3195,7 @@ ENSBTAG00000000011
 47
 </td>
 <td style="text-align:right;">
-0
+75
 </td>
 <td style="text-align:right;">
 3
@@ -3285,7 +3216,7 @@ ENSBTAG00000000011
 26
 </td>
 <td style="text-align:right;">
-75
+0
 </td>
 <td style="text-align:right;">
 3
@@ -3320,7 +3251,7 @@ ENSBTAG00000000012
 143
 </td>
 <td style="text-align:right;">
-125
+145
 </td>
 <td style="text-align:right;">
 70
@@ -3341,7 +3272,7 @@ ENSBTAG00000000012
 44
 </td>
 <td style="text-align:right;">
-145
+125
 </td>
 <td style="text-align:right;">
 48
@@ -3367,6 +3298,418 @@ ENSBTAG00000000012
 </tr>
 </tbody>
 </table>
+</div>
+</div>
+<div id="norm" class="section level1 tabset">
+<h1 class="tabset">Norm</h1>
+<div id="combatseq" class="section level2">
+<h2>ComBatSeq</h2>
+<pre class="r"><code>count_matrix &lt;- as.matrix(df)
+cdf &lt;- ComBat_seq(count_matrix, batch = samples$batch, group = samples$condition)</code></pre>
+<pre><code>## Found 2 batches
+## Using full model in ComBat-seq.
+## Adjusting for 4 covariate(s) or covariate level(s)
+## Estimating dispersions
+## Fitting the GLM model
+## Shrinkage off - using GLM estimates for parameters
+## Adjusting the data</code></pre>
+</div>
+<div id="normilisation" class="section level2">
+<h2>Normilisation</h2>
+<pre class="r"><code>dds &lt;- DESeqDataSetFromMatrix(
+  countData = cdf,
+  colData = samples,
+  design = ~ condition
+)</code></pre>
+<pre><code>## converting counts to integer mode</code></pre>
+<pre><code>## Warning in DESeqDataSet(se, design = design, ignoreRank): some variables in
+## design formula are characters, converting to factors</code></pre>
+<pre class="r"><code>dds &lt;- DESeq(dds)</code></pre>
+<pre><code>## estimating size factors</code></pre>
+<pre><code>## estimating dispersions</code></pre>
+<pre><code>## gene-wise dispersion estimates</code></pre>
+<pre><code>## mean-dispersion relationship</code></pre>
+<pre><code>## final dispersion estimates</code></pre>
+<pre><code>## fitting model and testing</code></pre>
+<pre><code>## -- replacing outliers and refitting for 14 genes
+## -- DESeq argument &#39;minReplicatesForReplace&#39; = 7 
+## -- original counts are preserved in counts(dds)</code></pre>
+<pre><code>## estimating dispersions</code></pre>
+<pre><code>## fitting model and testing</code></pre>
+<pre class="r"><code>res &lt;- results(dds)
+
+
+dds_count &lt;- estimateSizeFactors(dds)
+normalized_counts &lt;- counts(dds_count, normalized=TRUE)</code></pre>
+</div>
+</div>
+<div id="timecourse" class="section level1 tabset">
+<h1 class="tabset">Timecourse</h1>
+<div id="averages-df" class="section level2">
+<h2>Averages DF</h2>
+<pre class="r"><code># Time-point Averages of Normalized Counts ######################################
+normalized_counts_df &lt;- as.data.frame(normalized_counts)
+# Define/assign column names
+col_names &lt;- c(rep(&quot;v&quot;, 7), rep(&quot;mp&quot;, 7), rep(&quot;lp&quot;, 7), rep(&quot;el&quot;, 7), rep(&quot;l&quot;, 7))
+names(normalized_counts_df) &lt;- col_names
+
+# Prepare an empty data frame for storing averages, with correct dimensions and column names
+averages_df &lt;- data.frame(matrix(ncol = length(unique(col_names)), nrow = nrow(normalized_counts_df)))
+names(averages_df) &lt;- unique(col_names)
+rownames(averages_df) &lt;- rownames(normalized_counts_df)
+
+# Loop through each time-point to calculate and store row means
+for (timepoint in unique(col_names)) {
+  # Identify columns belonging to the current time-point
+  cols &lt;- which(col_names == timepoint)
+  # Calculate and store
+  averages_df[[timepoint]] &lt;- rowMeans(normalized_counts_df[, cols], na.rm = TRUE)
+}
+head(averages_df)</code></pre>
+<pre><code>##                               v          mp          lp          el         l
+## ENSBTAG00000000005 222.83971518 208.9822665 216.3579474 395.1031964 295.86744
+## ENSBTAG00000000008   0.09101192   0.2631827   0.2745275   0.7202736   0.00000
+## ENSBTAG00000000009  94.58296918 106.9566598  68.6357260  64.1902184  94.56270
+## ENSBTAG00000000010 290.55630954 266.2848146 303.4057908 666.3469239 628.63636
+## ENSBTAG00000000011  36.79054545  21.0850876  23.4233891  18.0733364  19.97571
+## ENSBTAG00000000012 158.71587594 115.4934772 129.0799472  81.0886870  94.71675</code></pre>
+</div>
+<div id="pairwise-comparison" class="section level2">
+<h2>Pairwise Comparison</h2>
+<pre class="r"><code>contrasts &lt;- list(
+  c(&quot;condition&quot;, &quot;l&quot;, &quot;v&quot;),
+  #
+  c(&quot;condition&quot;, &quot;el&quot;, &quot;v&quot;),
+  c(&quot;condition&quot;, &quot;l&quot;, &quot;mp&quot;),
+  #
+  c(&quot;condition&quot;, &quot;lp&quot;, &quot;v&quot;),
+  c(&quot;condition&quot;, &quot;el&quot;, &quot;mp&quot;),
+  c(&quot;condition&quot;, &quot;l&quot;, &quot;lp&quot;),
+  #
+  c(&quot;condition&quot;, &quot;mp&quot;, &quot;v&quot;),
+  c(&quot;condition&quot;, &quot;lp&quot;, &quot;mp&quot;),
+  c(&quot;condition&quot;, &quot;el&quot;, &quot;lp&quot;),
+  c(&quot;condition&quot;, &quot;l&quot;, &quot;el&quot;)
+)
+
+contrast_results &lt;- list()
+
+# DE for pairs in contrasts
+for (i in seq_along(contrasts)) {
+  contrast = contrasts[[i]]
+  res &lt;- results(dds, contrast=contrast)
+  
+  # Determine if the mean expression increases or decreases
+  condition1_mean &lt;- averages_df[[contrast[3]]]  # Mean for the first condition
+  condition2_mean &lt;- averages_df[[contrast[2]]]  # Mean for the second condition
+  expressionDirection &lt;- ifelse(condition1_mean &lt; condition2_mean, &quot;I&quot;, &quot;D&quot;)
+  
+  # Hypothesis test, FTR null assign &#39;S&#39;, Rej null assign I/D
+  res$expressionChange &lt;- ifelse(res$padj &gt; 0.05, &quot;S&quot;, expressionDirection)
+  
+  contrast_results[[paste(contrast[3], &quot;to&quot;, contrast[2])]] &lt;- res
+}</code></pre>
+</div>
+<div id="motif-structuring" class="section level2">
+<h2>Motif Structuring</h2>
+<pre class="r"><code>combined_results &lt;- data.frame(gene=rownames(contrast_results[[1]]))
+# Loop through each contrast result to combine them
+for (i in seq_along(contrast_results)) {
+  contrast_name &lt;- names(contrast_results)[i]  # Get the name of the current contrast
+  # Create a temporary dataframe with genes and their expression changes for the current contrast
+  temp_df &lt;- data.frame(gene=rownames(contrast_results[[i]]), 
+                        expressionChange=contrast_results[[i]]$expressionChange)
+  colnames(temp_df)[2] &lt;- contrast_name  # Rename the second column to the current contrast name
+  # Merge the temporary dataframe with the combined_results dataframe
+  combined_results &lt;- merge(combined_results, temp_df, by=&quot;gene&quot;, all=TRUE)
+}
+
+# Concatenate expression patterns to make model vector
+combined_results$modelVector &lt;- apply(combined_results[, -1], 1, 
+                                      function(x) paste(x, collapse = &quot;&quot;))
+
+# for Quaternary tree structure ###############################################################
+combined_results$primary &lt;- combined_results[,2]
+combined_results$secondary &lt;- paste0(combined_results[,3], combined_results[,4])
+combined_results$tertiary &lt;- paste0(combined_results[,5], combined_results[,6], combined_results[,7])
+combined_results$quaternary &lt;- paste0(combined_results[,8], combined_results[,9], combined_results[,10], combined_results[,11])
+
+head(combined_results)</code></pre>
+<pre><code>##                 gene v to l v to el mp to l v to lp mp to el lp to l v to mp
+## 1 ENSBTAG00000000005      S       I       S       S        I       S       S
+## 2 ENSBTAG00000000008      S       S       S       S        S       S       S
+## 3 ENSBTAG00000000009      S       S       S       S        S       S       S
+## 4 ENSBTAG00000000010      I       I       I       S        I       I       S
+## 5 ENSBTAG00000000011      S       S       S       S        S       S       S
+## 6 ENSBTAG00000000012      D       D       S       S        S       S       S
+##   mp to lp lp to el el to l modelVector primary secondary tertiary quaternary
+## 1        S        I       S  SISSISSSIS       S        IS      SIS       SSIS
+## 2        S        S       S  SSSSSSSSSS       S        SS      SSS       SSSS
+## 3        S        S       S  SSSSSSSSSS       S        SS      SSS       SSSS
+## 4        S        I       S  IIISIISSIS       I        II      SII       SSIS
+## 5        S        S       S  SSSSSSSSSS       S        SS      SSS       SSSS
+## 6        S        D       S  DDSSSSSSDS       D        DS      SSS       SSDS</code></pre>
+</div>
+<div id="mapping-specific-motif" class="section level2">
+<h2>Mapping Specific Motif</h2>
+<pre class="r"><code>motif_index &lt;- list()
+x &lt;- combined_results
+vector &lt;- paste0(x$`v to mp`,
+                 x$`v to lp`,
+                 x$`mp to el`,
+                 x$`lp to el`,
+                 x$`mp to l`,
+                 x$`lp to l`,
+                 x$`el to l`)
+
+# Loop through each unique modelVector
+for(model in unique(vector)) {
+  # Subset the genes that match the current modelVector
+  genes &lt;- combined_results$gene[vector == model]
+  # Store
+  motif_index[[model]] &lt;- genes
+}
+summary(motif_index)</code></pre>
+<pre><code>##         Length Class  Mode     
+## SSIISSS  141   -none- character
+## SSSSSSS 6255   -none- character
+## SSIIIIS  788   -none- character
+## SSSDSSS  171   -none- character
+## DSISIIS   40   -none- character
+## SSSSSSI   17   -none- character
+## DDSSIIS  199   -none- character
+## DSSSSSS  263   -none- character
+## IIIISSS   42   -none- character
+## SISSSDS   30   -none- character
+## IISSSSS  333   -none- character
+## SSSSDSS  179   -none- character
+## DDSSSSS  735   -none- character
+## SSSSSDS  150   -none- character
+## SSSISSS  206   -none- character
+## IISSDDD  363   -none- character
+## SDSISSS   61   -none- character
+## SDIIIIS   88   -none- character
+## SSDDDDS  711   -none- character
+## SDSISIS   96   -none- character
+## SSDDSSS  195   -none- character
+## SSSISIS  160   -none- character
+## SSIISIS   62   -none- character
+## SSSDSDS   95   -none- character
+## SSSSIIS  351   -none- character
+## SSSSDDS  372   -none- character
+## SDDSDSS   27   -none- character
+## SSSSISI   11   -none- character
+## SSISIIS  163   -none- character
+## SSSSISS  252   -none- character
+## ISDDDDS   25   -none- character
+## ISIISSS    5   -none- character
+## SSSDSSI   12   -none- character
+## SDSSSSS  314   -none- character
+## SISSSSS  148   -none- character
+## IISSDDS  189   -none- character
+## SDDDDSS    4   -none- character
+## DSSSISS   74   -none- character
+## DDIIIIS  249   -none- character
+## DSSSIIS   48   -none- character
+## DSDDSSS   12   -none- character
+## DSSSIII   23   -none- character
+## SSSIIIS  119   -none- character
+## SSISISS  118   -none- character
+## DSSDSSS   43   -none- character
+## IIIIIIS   67   -none- character
+## DSSDSDS   29   -none- character
+## SSSDDDS  103   -none- character
+## SSDDSDS   71   -none- character
+## SSDSSSS   67   -none- character
+## ISIIIIS   20   -none- character
+## SSDSDSS   50   -none- character
+## DSISISS   35   -none- character
+## SSISSSS   96   -none- character
+## IIDDDDS  136   -none- character
+## SSDSDDS   91   -none- character
+## IISIDDD    7   -none- character
+## IISSSDS   41   -none- character
+## DSIIIIS   61   -none- character
+## SIDDDDS   42   -none- character
+## ISSSDDS   20   -none- character
+## SISDDDS   17   -none- character
+## DDSSISS   63   -none- character
+## DSIIISS    2   -none- character
+## SSSSDDD   80   -none- character
+## DDSIIIS   56   -none- character
+## DDSSSIS   89   -none- character
+## IISDDDS   35   -none- character
+## DDDDSSS   33   -none- character
+## SSDDSSI    8   -none- character
+## DDSSIII  191   -none- character
+## SDSSDSS   26   -none- character
+## DDIISSS   10   -none- character
+## DDISIIS   30   -none- character
+## SISDSDS   10   -none- character
+## IIDSDDS   21   -none- character
+## SSSSSIS  142   -none- character
+## ISSISIS   17   -none- character
+## ISDSDDS   14   -none- character
+## SISSDDD    8   -none- character
+## SSSSSSD   19   -none- character
+## ISDSDSS    8   -none- character
+## SSSSIII   52   -none- character
+## IIISSSS   18   -none- character
+## SIIIIIS   44   -none- character
+## DDISISS    8   -none- character
+## DDDDSSI   13   -none- character
+## DDSDSSS   13   -none- character
+## SSIIISS   59   -none- character
+## DDISIII   10   -none- character
+## ISSSSSS   83   -none- character
+## DDIISIS    7   -none- character
+## DDSISIS   30   -none- character
+## DDDSDSS   14   -none- character
+## SSDDDSS   43   -none- character
+## IIDSDDD   35   -none- character
+## ISDDDDD    5   -none- character
+## SIISSSS   13   -none- character
+## DDSSDDS    8   -none- character
+## IISSISS   11   -none- character
+## DSISSSS   10   -none- character
+## DDDSDDS    7   -none- character
+## DDDSSSS   19   -none- character
+## SDDDDDS   15   -none- character
+## DSDDDDS   19   -none- character
+## DSISIII    7   -none- character
+## IISSDSD   15   -none- character
+## DSSSISI   13   -none- character
+## SISSDDS   36   -none- character
+## DSSSSSI    5   -none- character
+## DSSSSDD    1   -none- character
+## SDSIIIS   44   -none- character
+## DDDDDDS   33   -none- character
+## SIDDSDS    5   -none- character
+## DDIIISS    4   -none- character
+## SSIISSD   27   -none- character
+## ISSISSS   23   -none- character
+## DDSISSS   17   -none- character
+## ISSSDDD   24   -none- character
+## SDSIIII    2   -none- character
+## DDSDSDS    2   -none- character
+## DSSDDDS    5   -none- character
+## SISSIII    2   -none- character
+## IISSDSS   30   -none- character
+## IISISSS   21   -none- character
+## SDSSIII   10   -none- character
+## DDDDDSS    7   -none- character
+## ISDSDDD    4   -none- character
+## IISSSDD   12   -none- character
+## IISDSSS    6   -none- character
+## SSISIII    3   -none- character
+## IIISISS    7   -none- character
+## IIDDDDD   66   -none- character
+## SSDDDDD    9   -none- character
+## ISSSDSS   34   -none- character
+## SDSIDSS    1   -none- character
+## SSSISSD   10   -none- character
+## SDDDSSI    1   -none- character
+## SSSDISI    4   -none- character
+## SDSSIIS   20   -none- character
+## SDIISIS   16   -none- character
+## SDIIIID    1   -none- character
+## IIIISSD   19   -none- character
+## SISSSDD    7   -none- character
+## SIIISSS    7   -none- character
+## SDDSSSS   15   -none- character
+## DSDDSDS   14   -none- character
+## SIISIIS   10   -none- character
+## IISSSSD   13   -none- character
+## SDSSSII    3   -none- character
+## ISSIDSD    6   -none- character
+## DDSSISI   15   -none- character
+## SISSISS   19   -none- character
+## SDSSSIS   46   -none- character
+## DSSDSSI    7   -none- character
+## SSIIIII   13   -none- character
+## SIISISS   34   -none- character
+## SIIISSD    2   -none- character
+## IISISSD   14   -none- character
+## SDDDDDD    2   -none- character
+## SIDDDDD    2   -none- character
+## IIIISIS    7   -none- character
+## SSDSDDD    6   -none- character
+## ISSSDSD   11   -none- character
+## SDIISSS    3   -none- character
+## IIISSSD    5   -none- character
+## DDSSSII    5   -none- character
+## IISDDDD    7   -none- character
+## SDIISID    1   -none- character
+## DSSSSDS    7   -none- character
+## IIISIIS    6   -none- character
+## DDSDSSI    3   -none- character
+## DDDDSII    1   -none- character
+## DDSSSSI    9   -none- character
+## SIDDSDI    2   -none- character
+## IISISIS    4   -none- character
+## ISIISIS    7   -none- character
+## SISDSSS    7   -none- character
+## ISSSSIS    4   -none- character
+## DSIISSS    3   -none- character
+## SDDSDDS    5   -none- character
+## DSSDISI    3   -none- character
+## IISSIIS   12   -none- character
+## IIIIISS    5   -none- character
+## SSSSDSD   12   -none- character
+## DSDDSSI    5   -none- character
+## IISDSDS    6   -none- character
+## SSDDDSI    1   -none- character
+## SSSSSDD    5   -none- character
+## DDIIIII   15   -none- character
+## SDSSDSD    2   -none- character
+## SDIISSD    2   -none- character
+## DDDDSDS    2   -none- character
+## DSSSDDD    1   -none- character
+## SDSISSD    3   -none- character
+## DDSSSDS    1   -none- character
+## IIISDDD    1   -none- character
+## SDDDSSS    4   -none- character
+## SSSIDSD    6   -none- character
+## SSSSSII    1   -none- character
+## ISSISSD    3   -none- character
+## SDSSDDD    3   -none- character
+## SSDSSSI    2   -none- character
+## IISIDSD    5   -none- character
+## IIDDSDS    6   -none- character
+## DSIIIII    1   -none- character
+## ISSSIIS    2   -none- character
+## ISSIDSS    3   -none- character
+## IISSIII    1   -none- character
+## SDSSDDS    5   -none- character
+## SSISSSD    2   -none- character
+## SIIIISS    8   -none- character
+## DDISSSS    4   -none- character
+## DDSSDSS    6   -none- character
+## SSSIIII    2   -none- character
+## ISIISSD    2   -none- character
+## SSSDDDD    1   -none- character
+## DDDSSSI    1   -none- character
+## IISSSIS    2   -none- character
+## ISDSSSS    2   -none- character
+## SSDDDDI    1   -none- character
+## SIDDSSS    2   -none- character
+## SISSSSD    1   -none- character
+## DDSSDDD    1   -none- character
+## DDSIIII    5   -none- character
+## SISSIIS    2   -none- character
+## DDSDIII    2   -none- character
+## IIIIDSD    1   -none- character
+## DDDDIII    3   -none- character
+## SIISSSD    1   -none- character
+## SDSIDSD    2   -none- character
+## DDDDDDD    1   -none- character
+## DDSDISI    1   -none- character
+## DSSDISS    1   -none- character
+## ISSIDDD    1   -none- character
+## SDDSSSI    1   -none- character
+## DDIISSD    1   -none- character
+## DDDSSII    1   -none- character</code></pre>
+<pre class="r"><code>mi_mrna &lt;- motif_index</code></pre>
 </div>
 </div>
 
