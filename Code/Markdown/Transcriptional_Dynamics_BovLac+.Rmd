@@ -164,7 +164,8 @@ dds <- DESeqDataSetFromMatrix(
 )
 
 
-
+dds <- DESeq(dds)
+res <- results(dds)
 ```
 
 ### PCA
@@ -255,7 +256,8 @@ contrast_results <- list()
 # DE for pairs in contrasts
 for (i in seq_along(contrasts)) {
   contrast = contrasts[[i]]
-  res <- results(dds, contrast=contrast)
+  res <- results(dds,
+                 contrast=contrast)
   
   # Determine if the mean expression increases or decreases
   condition1_mean <- averages_df[[contrast[3]]]  # Mean for the first condition
