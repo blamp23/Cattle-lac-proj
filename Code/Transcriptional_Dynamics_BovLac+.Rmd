@@ -8,6 +8,7 @@ output:
     toc_float: true
     theme: united
     highlights: tango
+runtime: shiny
 ---
 
 # Introduction
@@ -28,11 +29,15 @@ library(readxl)
 library(tidyr)
 library(knitr)
 library(kableExtra)
+library(ggplot2)
+library(plotly)
+library(ggrepel)
+
 ```
 
 ### Data
 
-Import raw count files from github
+The raw count files can be downloaded directly from Github. The data was loaded using the read.delim function from the base package, setting the Ensembl ids as rownames. The first column, which was redundant (gene-ids), was removed.
 
 ```{r}
 file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Raw_Cattle_Counts.tabular'
@@ -40,18 +45,13 @@ df <- read.delim(file_path, header = TRUE, row.names = 1)
 df <- df[-1]
 ```
 
-# Filtering/loading {.tabset}
+# Filtering/loading
 
 ## Metadata
 
-Creation of a dataframe that holds information about the experiment, as well as the batch effects
+Sample metadata was compiled to reflect the stages of pregnancy as well as the batches associated with strandedness. The metadata table includes animal identifier, stage of pregnancy, and batch for each sample.
 
 ```{r, echo=FALSE}
-file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Raw_Cattle_Counts.tabular'
-df <- read.delim(file_path, header = TRUE, row.names = 1)
-df <- df[-1]
-
-
 samples <- data.frame(
   row.names = c("v_468", "v_502", "v_504", "v_507", "v_509", "v_598", "v_610", 
                 "mp_468", "mp_502", "mp_504", "mp_507", "mp_509", "mp_598", "mp_610",
@@ -68,14 +68,13 @@ samples <- data.frame(
             0, 1, 0, 1, 0, 0, 0,
             0, 1, 0, 0, 1, 0, 0,
             0, 1, 0, 1, 0, 0, 0, 
-            1, 1, 1, 1, 1, 1, 1 ),
-  BCM = c(1, 1, 1, 1, 1, 1, 1,
-          0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0,
-          1, 1, 1, 1, 1, 1, 1)
+            1, 1, 1, 1, 1, 1, 1 )
 )
+```
 
+Before finalizing the raw counts, it's necessary to adjust the column names of the dataframe to simplify data manipulation. The format is the condition followed by the sample identifier (e.g., XX_123). The format mimics the row names of the metadata dataframe. Additionally, it is important to note that the samples from Early Lactation 610 and Late Pregnancy 610 were switched prior to sequencing and must be corrected before proceeding with the analysis.
+
+```{r, echo=F, results='asis', message=FALSE}
 new_colnames <- c(row.names(samples))
 colnames(df) <- new_colnames
 
@@ -94,12 +93,27 @@ df <- df[, new_order]
 
 samples <- samples[colnames(df), ]
 
-print(samples)
-head(df)
+
+
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(samples, caption = "Sample Data") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 
 ```
 
 ## Filtering
+
+Each gene is evaluated within each lactation stage based on its count in the 7 samples. A gene needs to have a count above the threshold of 3 in at least 4 of the 7 samples per time-point to be flagged for inclusion. If a gene has high counts in at least 1/5 of the timepoints, it will be included in the study.
 
 ```{r}
 # Filter Method A ##############################################################
@@ -126,55 +140,23 @@ gene_inclusion_filter <- rowSums(do.call(cbind, high_exp_counts)) >= 1 # If 1/5 
 df <- df[gene_inclusion_filter, ]
 ```
 
-## Filtered Counts
-
-```{r, echo=FALSE, results='asis'}
-library(knitr)
-library(kableExtra)
-
-# Custom CSS to enlarge table captions
-cat("
-<style>
-table caption {
-  font-size: 16pt;
-  font-weight: bold;
-}
-</style>
-")
-
-# Assuming 'samples' is another data frame you want to display
-kable(samples, caption = "Sample Data") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-# Displaying the first few rows of df
-df_head <- head(df)
-
-# Splitting df into two halves if it has many columns
-half_col <- ceiling(ncol(df_head) / 2)
-df_head_first_part <- df_head[, 1:half_col]
-df_head_second_part <- df_head[, (half_col+1):ncol(df_head)]
-
-# Display the first half
-kable(df_head_first_part, caption = "Filtered Counts") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-
-# Display the second half
-kable(df_head_second_part) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
-```
-
-# Norm {.tabset}
+# Norm
 
 ## ComBatSeq
 
+Batch effects that resulted from strandedness which were seen to skew the analysis results in previous principal component analysis, were corrected using the ComBat_seq function from the sva package. This function adjusts for known batch variables, specified by the batch parameter in the metadata, and prevents over fitting by taking into account the experimental design (time course variables).
+
 ```{r}
 count_matrix <- as.matrix(df)
-cdf <- ComBat_seq(count_matrix, batch = samples$batch, group = samples$condition)
+
+cdf <- ComBat_seq(count_matrix,
+                  batch = samples$batch,
+                  group = samples$condition)
 ```
 
-## Normilisation
+## DESeq2
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 dds <- DESeqDataSetFromMatrix(
   countData = cdf,
   colData = samples,
@@ -182,23 +164,39 @@ dds <- DESeqDataSetFromMatrix(
 )
 
 
-dds <- DESeq(dds)
-res <- results(dds)
 
-
-dds_count <- estimateSizeFactors(dds)
-normalized_counts <- counts(dds_count, normalized=TRUE)
 ```
 
-# Timecourse {.tabset}
+### PCA
+
+```{r, message=FALSE, warning=FALSE, echo=F}
+vsd <- vst(dds)
+# Get the PCA data
+pcaData <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+
+# Extract the percent variance captured by each principal component
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+# Plot with ggplot2
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  geom_text_repel(aes(label=row.names(pcaData))) +  # using ggrepel to prevent overlap
+  stat_ellipse(aes(group=condition), level=0.85) +  # adding ellipses around each condition group
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme_bw() +
+  ggtitle("PCA Plot")
+
+```
+
+# Timecourse
 
 ## Averages DF
 
-```{r}
-# Time-point Averages of Normalized Counts ######################################
-normalized_counts_df <- as.data.frame(normalized_counts)
-# Define/assign column names
-col_names <- c(rep("v", 7), rep("mp", 7), rep("lp", 7), rep("el", 7), rep("l", 7))
+```{r, echo=FALSE, message=FALSE}
+dds <- estimateSizeFactors(dds)
+normalized_counts_df <- as.data.frame(counts(dds, normalized=TRUE))
+col_names <- rep(c("v", "mp", "lp", "el", "l"), each = 7)
 names(normalized_counts_df) <- col_names
 
 # Prepare an empty data frame for storing averages, with correct dimensions and column names
@@ -213,7 +211,24 @@ for (timepoint in unique(col_names)) {
   # Calculate and store
   averages_df[[timepoint]] <- rowMeans(normalized_counts_df[, cols], na.rm = TRUE)
 }
-head(averages_df)
+
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+hadf <- head(averages_df)
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(hadf, caption = "Averages") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
 ```
 
 ## Pairwise Comparison
@@ -279,11 +294,68 @@ combined_results$secondary <- paste0(combined_results[,3], combined_results[,4])
 combined_results$tertiary <- paste0(combined_results[,5], combined_results[,6], combined_results[,7])
 combined_results$quaternary <- paste0(combined_results[,8], combined_results[,9], combined_results[,10], combined_results[,11])
 
-head(combined_results)
+
 
 ```
 
-## Mapping Specific Motif 
+```{r, echo=FALSE, message=FALSE, results='asis'}
+# Use the fully qualified function name to avoid conflicts
+relevant_data <- combined_results %>%
+  dplyr::select(starts_with("v to"), starts_with("mp to"), starts_with("lp to"), starts_with("el to"))
+
+# Reshape data from wide to long format
+long_data <- relevant_data %>%
+  pivot_longer(cols = everything(), names_to = "transition", values_to = "event") %>%
+  group_by(transition, event) %>%
+  summarise(count = n(), .groups = 'drop')
+
+# Spread the data back to wide format to see counts for each event type in each transition
+wide_data <- long_data %>%
+  pivot_wider(names_from = event, values_from = count, values_fill = list(count = 0))
+
+# View the resulting DataFrame
+print(wide_data)
+
+wide <- as.data.frame(wide_data)
+
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(wide, caption = "") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+selected_columns <- combined_results[, c(1, 12:16)]
+head(selected_columns)
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(head(combined_results[,1:11]), caption = "") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+kable(head(selected_columns), caption = "") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+
+```
+
+## Mapping Specific Motif
 
 ```{r}
 motif_index <- list()
@@ -303,6 +375,115 @@ for(model in unique(vector)) {
   # Store
   motif_index[[model]] <- genes
 }
-summary(motif_index)
-mi_mrna <- motif_index
+
+```
+
+```{r, message=F, echo=F}
+mapped_motif_index <- list()
+for(model in names(motif_index)) {
+  ensembl_ids <- motif_index[[model]]
+  gene_symbols <- tryCatch({
+    mapIds(org.Bt.eg.db,
+           keys = ensembl_ids,
+           column = "SYMBOL",
+           keytype = "ENSEMBL",
+           multivals = 'first')
+  }, error = function(e) {
+    message("Error with model ", model, ": ", e$message)
+    return(NA)  # Return NA or any other placeholder that indicates an error
+  })
+  mapped_motif_index[[model]] <- gene_symbols
+}
+
+```
+
+```{r, input_ui, echo=FALSE}
+textInput("gene_input", "Type a Gene:", value = "LAMTOR1")
+```
+
+```{r, message=FALSE, echo=FALSE }
+
+ncdf <- normalized_counts_df
+ncdf$modelVector <- NULL
+
+original_ensembl_ids <- row.names(ncdf)
+
+# Map
+gene_symbols <- list()
+gene_symbols <- mapIds(org.Bt.eg.db,
+                       keys = original_ensembl_ids,
+                       column = "SYMBOL",
+                       keytype = "ENSEMBL",
+                       multivals = 'first')
+
+
+unique_gene_symbols <- gene_symbols
+duplicates <- duplicated(gene_symbols) | duplicated(gene_symbols, fromLast = TRUE)
+unique_gene_symbols[duplicates] <- paste(gene_symbols[duplicates], original_ensembl_ids[duplicates], sep = "_")
+
+# Replace NAs with the original Ensembl ID (if any NAs remain)
+unique_gene_symbols[is.na(unique_gene_symbols)] <- original_ensembl_ids[is.na(unique_gene_symbols)]
+
+# Update row names in ncdf with the unique gene symbols
+row.names(ncdf) <- unique_gene_symbols
+ncdf$gene <- rownames(ncdf)
+
+
+myColors <- c(
+  "v" = "#F8766D",
+  "mp" = "#00BA38",
+  "lp" = "#619CFF",
+  "el" = "#F564E3", 
+  "l" = "#FFC000" 
+)
+
+
+# Pivot the data to a long format
+ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "value")
+
+# Clean group names by removing numeric suffixes
+ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
+
+
+
+output$genePlot <- renderPlot({
+  goi <- input$gene_input
+  goi_model_vector <- ""
+
+  # Check if the typed gene is in any model
+  if(any(sapply(mapped_motif_index, function(x) goi %in% x))) {
+    for(model in names(mapped_motif_index)) {
+      if(goi %in% mapped_motif_index[[model]]) {
+        goi_model_vector <- model
+        break
+      }
+    }
+  } else {
+    # Optional: Display a message if the gene is not found (or handle it in another way)
+    return(ggplot() + 
+             labs(title = "Gene not found", subtitle = "Please check the gene name and try again."))
+  }
+  
+  ld_gene_of_interest <- ld_goi %>% 
+    filter(gene == goi) %>%
+    filter(complete.cases(.)) %>%
+    mutate(group = factor(group, levels = c("v", "mp", "lp", "el", "l")))
+  
+  ggplot(ld_gene_of_interest, aes(x = group, y = log10(value), fill = group)) +
+    geom_boxplot() +
+    theme_minimal() +
+    geom_point(color="black", size=2, position = position_dodge(width = 0.75)) +
+    geom_smooth(aes(group = 1), method = "loess", color = "navy", se = FALSE, size = 2.25) +
+    stat_summary(fun = mean, geom = "point", color = "red", size = 3, shape = 18) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) +
+    labs(title = paste("Expression of", goi, "|", goi_model_vector),
+         x = "Time Point",
+         y = bquote(~Log[10]~ 'Normalized Counts')) +
+    scale_fill_manual(values = myColors)
+})
+```
+
+```{r, echo=FALSE}
+plotOutput("genePlot")
 ```
