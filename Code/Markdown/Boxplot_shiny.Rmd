@@ -1,0 +1,154 @@
+---
+title: "Boxplot & Pattern Generator for mRNA Expression"
+author: "Benji Lamp"
+date: "2024-05-02"
+output: html_document
+runtime: shiny
+---
+
+```{r, message=F, echo=FALSE, warning=FALSE}
+library(dplyr)
+library(AnnotationDbi)
+library(org.Bt.eg.db)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(ggrepel)
+library(shiny) 
+```
+
+```{r, message=F, echo=FALSE, warning=FALSE}
+url <- "https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/normalized_counts_df.rds"
+destfile <- "normalized_counts_df.rds"
+download.file(url, destfile, method = "auto")
+ncdf1 <- readRDS(destfile)
+
+##################
+url2 <- "https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/motif_index_mRNA_v1.rds"
+destfile <- "motif_index_mRNA_v1.rds"
+download.file(url2, destfile, method = "auto")
+mmi_mRNA_git <- readRDS(destfile)
+########################
+
+ncdf <- ncdf1
+mapped_motif_index <- mmi_mRNA_git
+```
+
+```{r}
+# Patterning Structure
+# 
+# The time course analysis is organized in a piecewise hierarchical structure with 4 tiers. 
+# 
+# Primary:		V-PL
+# Secondary:	V-EL MP-PL
+# Tertiary:		V-LP MP-EL LP-PL
+# Quaternary:	V-MP MP-LP LP-EL EL-PL
+# 
+# V:  	Virgin
+# MP:	  Mid-Pregnant 
+# LP: 	Late-Pregnant
+# EL: 	Early Lactation
+# PL: 	Peak Lactation
+# 
+# A complete model vector will be structured as 
+# Primary-Secondary-Tertiary-Quaternary
+# X-XX-XXX-XXXX
+# XXXXXXXXXX
+
+# S - 	‘Stable’ - The gene is not significantly expressed between 2 timepoints
+# I -	  ‘Increase’ - Significant increase in expression
+# D - 	‘Decrease’ Significant decrease in expression
+
+# A gene is categorized as 'Stable' (S) when differential expression is not significant (padj > 0.05). For significant differential expression, the mean of normalized counts is assessed:
+# if the mean at time point n is greater than at n+1, expression is categorized as 'Decreases' (D); 
+# if the mean at time point n is less than at n+1, expression is categorized as 'Increases' (I).
+```
+
+```{r, input_ui, echo=FALSE}
+textInput("gene_input", "Type a Gene:", value = "LAMTOR1")
+```
+
+```{r, message=FALSE, echo=FALSE }
+
+
+
+original_ensembl_ids <- row.names(ncdf)
+
+# Map
+gene_symbols <- list()
+gene_symbols <- mapIds(org.Bt.eg.db,
+                       keys = original_ensembl_ids,
+                       column = "SYMBOL",
+                       keytype = "ENSEMBL",
+                       multivals = 'first')
+
+
+unique_gene_symbols <- gene_symbols
+duplicates <- duplicated(gene_symbols) | duplicated(gene_symbols, fromLast = TRUE)
+unique_gene_symbols[duplicates] <- paste(gene_symbols[duplicates], original_ensembl_ids[duplicates], sep = "_")
+
+# Replace NAs with the original Ensembl ID (if any NAs remain)
+unique_gene_symbols[is.na(unique_gene_symbols)] <- original_ensembl_ids[is.na(unique_gene_symbols)]
+
+# Update row names in ncdf with the unique gene symbols
+row.names(ncdf) <- unique_gene_symbols
+ncdf$gene <- rownames(ncdf)
+
+
+myColors <- c(
+  "v" = "#F8766D",
+  "mp" = "#00BA38",
+  "lp" = "#619CFF",
+  "el" = "#F564E3", 
+  "l" = "#FFC000" 
+)
+
+
+# Pivot the data to a long format
+ld_goi <- pivot_longer(ncdf, cols = -gene, names_to = "group", values_to = "value")
+
+# Clean group names by removing numeric suffixes
+ld_goi$group <- gsub("(_\\d+)", "", ld_goi$group)
+
+
+
+output$genePlot <- renderPlot({
+  goi <- input$gene_input
+  goi_model_vector <- ""
+
+  # Check if the typed gene is in any model
+  if(any(sapply(mapped_motif_index, function(x) goi %in% x))) {
+    for(model in names(mapped_motif_index)) {
+      if(goi %in% mapped_motif_index[[model]]) {
+        goi_model_vector <- model
+        break
+      }
+    }
+  } else {
+    return(ggplot() + 
+             labs(title = "Gene not found", subtitle = "Please check the gene name and try again."))
+  }
+  
+  ld_gene_of_interest <- ld_goi %>% 
+    filter(gene == goi) %>%
+    filter(complete.cases(.)) %>%
+    mutate(group = factor(group, levels = c("v", "mp", "lp", "el", "l")))
+  
+  ggplot(ld_gene_of_interest, aes(x = group, y = log10(value), fill = group)) +
+    geom_boxplot() +
+    theme_minimal() +
+    geom_point(color="black", size=2, position = position_dodge(width = 0.75)) +
+    geom_smooth(aes(group = 1), method = "loess", color = "navy", se = FALSE, size = 2.25) +
+    stat_summary(fun = mean, geom = "point", color = "red", size = 3, shape = 18) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) +
+    labs(title = paste("Expression of", goi, "|", goi_model_vector),
+         x = "Time Point",
+         y = bquote(~Log[10]~ 'Normalized Counts')) +
+    scale_fill_manual(values = myColors)
+})
+```
+
+```{r, echo=FALSE}
+plotOutput("genePlot")
+```
