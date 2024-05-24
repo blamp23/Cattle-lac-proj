@@ -1,0 +1,128 @@
+---
+title: "Boxplot & Pattern Generator for mRNA Expression"
+author: "Benji Lamp"
+date: "2024-05-02"
+output: html_document
+runtime: shiny
+---
+
+```{r, message=F, echo=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(ggrepel)
+library(shiny) 
+```
+
+```{r, message=F, echo=FALSE, warning=FALSE}
+url <- "https://github.com/blamp23/Cattle-lac-proj/raw/main/Raw_data/ld_goi.rds"
+destfile <- "ld_goi.rds"
+download.file(url, destfile, method = "auto")
+ld_goi <- readRDS(destfile)
+
+##################
+url2 <- "https://github.com/blamp23/Cattle-lac-proj/raw/main/motif_index_mRNA_v1.rds"
+destfile <- "motif_index_mRNA_v1.rds"
+download.file(url2, destfile, method = "auto")
+mapped_motif_index <- readRDS(destfile)
+
+```
+
+It wouldbe cool to do this with mapped miRNAs. for example, If i type a mRNA gene in, it will type itself into targetscan then pull target miRNAs that appear in our dataset, then list/produce the boxplots and patterns that we have in the data.
+
+<https://mirmap.ezlab.org/app>
+
+```{r}
+# Patterning Structure
+# 
+# The time course analysis is organized in a piecewise hierarchical structure with 4 tiers. 
+# 
+# Primary:		V-PL
+# Secondary:	V-EL MP-PL
+# Tertiary:		V-LP MP-EL LP-PL
+# Quaternary:	V-MP MP-LP LP-EL EL-PL
+# 
+# V:    Virgin
+# MP:   Mid-Pregnant 
+# LP: 	Late-Pregnant
+# EL: 	Early Lactation
+# PL: 	Peak Lactation
+# 
+# A complete model vector will be structured as 
+# Primary-Secondary-Tertiary-Quaternary
+# X-XX-XXX-XXXX
+# XXXXXXXXXX
+
+# S - 	‘Stable’ - The gene is not significantly expressed between 2 timepoints
+# I -	  ‘Increase’ - Significant increase in expression
+# D - 	‘Decrease’ Significant decrease in expression
+
+# A gene is categorized as 'Stable' (S) when differential expression is not significant (padj > 0.05). For significant differential expression, the mean of normalized counts is assessed:
+# if the mean at time point n is greater than at n+1, expression is categorized as 'Decreases' (D); 
+# if the mean at time point n is less than at n+1, expression is categorized as 'Increases' (I).
+```
+
+```{r, input_ui, echo=FALSE}
+textInput("gene_input", "Type a Gene:", value = "LAMTOR1")
+```
+
+```{r, message=FALSE, echo=FALSE }
+myColors <- c(
+  "v" = "#F8766D",
+  "mp" = "#00BA38",
+  "lp" = "#619CFF",
+  "el" = "#F564E3", 
+  "l" = "#FFC000" 
+)
+
+
+output$genePlot <- renderPlot({
+  goi <- input$gene_input
+  goi_model_vector <- ""
+
+  # Check if the typed gene is in any model
+  if(any(sapply(mapped_motif_index, function(x) goi %in% x))) {
+    for(model in names(mapped_motif_index)) {
+      if(goi %in% mapped_motif_index[[model]]) {
+        goi_model_vector <- model
+        break
+      }
+    }
+  } else {
+    return(ggplot() + 
+             labs(title = "Gene not found", subtitle = "Please check the gene name and try again."))
+  }
+  
+  ld_gene_of_interest <- ld_goi %>% 
+    filter(gene == goi) %>%
+    filter(complete.cases(.)) %>%
+    mutate(group = factor(group, levels = c("v", "mp", "lp", "el", "l")))
+  
+  ggplot(ld_gene_of_interest, aes(x = group, y = log10(value), fill = group)) +
+    geom_boxplot() +
+    theme_minimal() +
+    geom_point(color="black", size=2, position = position_dodge(width = 0.75)) +
+    geom_smooth(aes(group = 1), method = "loess", color = "navy", se = FALSE, size = 2.25) +
+    stat_summary(fun = mean, geom = "point", color = "red", size = 3, shape = 18) +
+    theme(plot.title = element_text(size = 18, face = 'bold'), 
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 12),  # Adjust x-axis text size
+          axis.text.y = element_text(size = 12),  # Adjust y-axis text size
+          axis.title = element_text(size = 14),   # Adjust axis title size
+          legend.title = element_text(size = 14), # Adjust legend title size
+          legend.text = element_text(size = 12),  # Adjust legend text size
+          legend.key.size = unit(3, "lines")) +   # Adjust legend key size
+    scale_x_discrete(labels = c("V", "MP", "LP", "EL", "L")) +
+    labs(title = paste("Expression of", goi, "|", goi_model_vector),
+         x = "Time Point",
+         y = bquote(~Log[10]~ 'Normalized Counts'),
+         fill = "Time Point") +   # Rename the legend
+    scale_fill_manual(values = myColors,
+                      labels = c("Virgin", "Mid-Pregnant", "Late-Pregnant", "Early Lactation", "Peak Lactation"))
+
+})
+```
+
+```{r, echo=FALSE}
+plotOutput("genePlot")
+```

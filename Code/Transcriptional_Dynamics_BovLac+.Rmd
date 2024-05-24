@@ -1,0 +1,469 @@
+---
+title: "Transcriptional Dynamics of Milk Production in Bovine Mammary Glands"
+author: "Benji Lamp"
+date: "4/24/24"
+output: 
+  html_document: 
+    toc: true
+    toc_float: true
+    theme: united
+    highlights: tango
+---
+
+# Introduction
+
+It is understood that the mammary gland in cattle undergoes extensive morphological and physiological transformations to facilitate the production of milk. These changes are regulated at the genetic and epigenetic level, with specific patterns of expression driving maturation of the gland. This study aims to uncover the temporal expression patterns of mRNA in bovine mammary glands by performing timewise differential expression of sequencing data, then clustering based on temporal expression pattern.
+
+# Galaxy 
+All paired end reads were loaded into galaxy as single end. After preliminary QC was performed, alignment to the bosTau9 reference genome was performed. After alignment, statistics were again drawn in order to ensure quality of reads. Mapping to genome to generate counts was performed by Feature counts. Read mapping took in to account the strandedness of the reads, All stranded reads were read in as forward stranded. In reference to the metadata, the column 'batch' delimitates which samples were stranded and unstranded (1,0 respectively). 
+
+
+# Setup {.tabset}
+
+### Libraries
+
+```{r, message=FALSE, warning=FALSE}
+library(DESeq2)
+library(dplyr)
+library(AnnotationDbi)
+library(org.Bt.eg.db)
+library(sva)
+library(readxl)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(plotly)
+library(ggrepel)
+
+```
+
+### Data
+
+The raw count files can be downloaded directly from Github. The data was loaded using the read.delim function from the base package, setting the Ensembl ids as rownames. The first column, which was redundant (gene-ids), was removed.
+
+```{r}
+file_path <- 'https://raw.githubusercontent.com/blamp23/Cattle-lac-proj/main/Raw_data/Raw_Cattle_Counts.tabular'
+df <- read.delim(file_path, header = TRUE, row.names = 1)
+df <- df[-1]
+```
+
+# Filtering/loading
+
+## Metadata
+
+Sample metadata was compiled to reflect the stages of pregnancy as well as the batches associated with strandedness. The metadata table includes the animal identifier, stage of pregnancy, and batch for each sample.
+
+```{r, echo=FALSE}
+samples <- data.frame(
+  row.names = c("v_468", "v_502", "v_504", "v_507", "v_509", "v_598", "v_610", 
+                "mp_468", "mp_502", "mp_504", "mp_507", "mp_509", "mp_598", "mp_610",
+                "lp_468", "lp_502", "lp_504", "lp_509", "lp_507", "lp_598", "lp_610",
+                "el_468", "el_502", "el_504", "el_507", "el_509", "el_598", "el_610",
+                "l_468", "l_502", "l_504", "l_507", "l_509", "l_598", "l_610"),
+  condition = c(rep("v", 7), rep("mp", 7), rep("lp", 7), rep("el", 7), rep("l", 7)),
+  animal = c(468, 502, 504, 507, 509, 598, 610,
+             468, 502, 504, 507, 509, 598, 610,
+             468, 502, 504, 509, 507, 598, 610,
+             468, 502, 504, 507, 509, 598, 610,
+             468, 502, 504, 507, 509, 598, 610),
+  batch = c(1, 1, 1, 1, 1, 1, 1, 
+            0, 1, 0, 1, 0, 0, 0,
+            0, 1, 0, 0, 1, 0, 0,
+            0, 1, 0, 1, 0, 0, 0, 
+            1, 1, 1, 1, 1, 1, 1 )
+)
+```
+
+Before finalizing the raw counts, it is necessary to adjust the dataframe's column names to simplify data manipulation. The desired format combines the condition with the sample identifier (e.g., XX_123), which mirrors the row names in the metadata dataframe. The format mimics the row names of the metadata dataframe. Additionally, it is important to note that the samples from Early Lactation 610 and Late Pregnancy 610 were switched prior to sequencing and must be corrected before proceeding with the analysis.
+
+```{r, echo=F, results='asis', message=FALSE}
+new_colnames <- c(row.names(samples))
+colnames(df) <- new_colnames
+
+colnames(df)[28] <- "lp_610"  # lp_610 and el_610 are swapped samples
+colnames(df)[21] <- "el_610"
+
+el_610 <- which(names(df) == "el_610")
+lp_610 <- which(names(df) == "lp_610")
+
+# Create a new vector of column names with the positions of these two columns swapped
+new_order <- names(df)
+new_order[c(el_610, lp_610)] <- new_order[c(lp_610, el_610)]
+
+# Reorder the columns in the DataFrame
+df <- df[, new_order]
+
+samples <- samples[colnames(df), ]
+
+
+
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(samples, caption = "Sample Data") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+```
+
+## Filtering
+
+To determine which genes should be included in the study, each gene is evaluated within each lactation stage based on its expression count across the 7 samples in that stage. A gene is considered for inclusion in a specific lactation stage if its count exceeds a threshold of 3 in at least 4 of the 7 samples at that time point.
+
+A gene will be included in the final study if it meets the above criteria in at least 1 out of the 5 time points (i.e., lactation stages). This means that a gene must have high counts in at least one of the lactation stages to be included in the study.
+
+```{r}
+# Step 1: Splitting Data by Condition
+conditions <- unique(samples$condition)
+split_data <- lapply(conditions, function(cond) {
+  df[, samples$condition == cond]
+})
+
+# Step 2: Define Filtering Function
+count_high_expressions <- function(data) {
+  apply(data, 1, function(gene) {
+    sum(gene >= 3) >= 4  # Returns TRUE if at least 4 out of 7 samples have counts ≥ 3
+  })
+}
+high_exp_counts <- lapply(split_data, count_high_expressions)
+
+# Step 3: Aggregate Results for inclusion
+gene_inclusion_filter <- rowSums(do.call(cbind, high_exp_counts)) >= 1 # If 1/5 timepoints meet crit, gene is included
+
+# Step 4: Filter Genes
+df <- df[gene_inclusion_filter, ]
+```
+
+# Normalization
+
+## ComBatSeq
+
+Strandedness as a batch effect was seen to have distorted our data when using principal component analysis as a diagnostic tool. In order to correct the batch effect, the ComBat_seq function from the sva package was used. This function adjusts for batch effects using the batch variable from our metadata and considers the experimental design (like time course variables) to prevent overfitting.
+
+```{r, message=FALSE}
+count_matrix <- as.matrix(df)
+
+cdf <- ComBat_seq(count_matrix,
+                  batch = samples$batch,
+                  group = samples$condition)
+```
+
+## DESeq2
+
+
+A standard DESeq function was applied using the counts corrected by ComBat_seq and the experimental design from the 'samples' metadata frame.
+
+```{r, message=FALSE, warning=FALSE}
+dds <- DESeqDataSetFromMatrix(
+  countData = cdf,
+  colData = samples,
+  design = ~ condition
+)
+
+dds <- DESeq(dds)
+```
+
+
+```{r, message = F, warning=F, echo = F}
+
+dds <- DESeq(dds)
+res <- results(dds)
+
+
+dds1 <- DESeqDataSetFromMatrix(
+  countData = count_matrix,
+  colData = samples,
+  design = ~ condition
+)
+
+dds1 <- DESeq(dds1)
+```
+
+### PCA {.tabset}
+
+#### Corrected PCA
+```{r, message=FALSE, warning=FALSE, echo=F}
+vsd <- vst(dds)
+# Get the PCA data
+pcaData <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+
+# Extract the percent variance captured by each principal component
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+# Plot with ggplot2
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  geom_text_repel(aes(label=row.names(pcaData))) +  # using ggrepel to prevent overlap
+  stat_ellipse(aes(group=condition), level=0.85) +  # adding ellipses around each condition group
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme_bw() +
+  ggtitle("ComBat Corrected PCA Plot")
+
+```
+
+#### Raw PCA
+```{r, message=FALSE, warning=FALSE, echo=F}
+vsd <- vst(dds1)
+# Get the PCA data
+pcaData <- plotPCA(vsd, intgroup=c("condition"), returnData=TRUE)
+
+# Extract the percent variance captured by each principal component
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+# Plot with ggplot2
+ggplot(pcaData, aes(x=PC1, y=PC2, color=condition)) +
+  geom_point(size=3) +
+  geom_text_repel(aes(label=row.names(pcaData))) +  # using ggrepel to prevent overlap
+  stat_ellipse(aes(group=condition), level=0.85) +  # adding ellipses around each condition group
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  theme_bw() +
+  ggtitle("Uncorrected PCA")
+
+```
+
+# Timecourse Analysis
+
+```{r, echo=FALSE, message=FALSE}
+dds <- estimateSizeFactors(dds)
+normalized_counts_df <- as.data.frame(counts(dds, normalized=TRUE))
+col_names <- rep(c("v", "mp", "lp", "el", "l"), each = 7)
+names(normalized_counts_df) <- col_names
+
+# Prepare an empty data frame for storing averages, with correct dimensions and column names
+averages_df <- data.frame(matrix(ncol = length(unique(col_names)), nrow = nrow(normalized_counts_df)))
+names(averages_df) <- unique(col_names)
+rownames(averages_df) <- rownames(normalized_counts_df)
+
+# Loop through each time-point to calculate and store row means
+for (timepoint in unique(col_names)) {
+  # Identify columns belonging to the current time-point
+  cols <- which(col_names == timepoint)
+  # Calculate and store
+  averages_df[[timepoint]] <- rowMeans(normalized_counts_df[, cols], na.rm = TRUE)
+}
+
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+hadf <- head(averages_df)
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 16pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(hadf, caption = "Mean of Normalized Counts") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+## Pairwise Comparison
+
+To perform differential expression analysis, comparative structures need to be formed between timepoints. The loop below iterates through each successive comparison and generates 'res' objects from DESeq2, which contain statistics like log fold change and adjusted p-values for each comparison. After the False Discovery Rate adjusted p-value (padj) is generated, the mean of the normalized counts is evaluated between each comparison. If gene expression increases from time n to n+1, an 'I' will be assigned to the gene. If gene expression decreases from n to n+1, a 'D' will be assigned to the gene.
+
+The adjusted p-value generated from DESeq2 is then used to evaluate whether there is significance. If the padj value is greater than 0.05, the gene will be deemed to have an insignificant change in expression between timepoints and will be assigned an 'S'
+
+
+
+```{r}
+contrasts <- list(
+  c("condition", "l", "v"),
+  #
+  c("condition", "el", "v"),
+  c("condition", "l", "mp"),
+  #
+  c("condition", "lp", "v"),
+  c("condition", "el", "mp"),
+  c("condition", "l", "lp"),
+  #
+  c("condition", "mp", "v"),
+  c("condition", "lp", "mp"),
+  c("condition", "el", "lp"),
+  c("condition", "l", "el")
+)
+
+contrast_results <- list()
+
+# DE for pairs in contrasts
+for (i in seq_along(contrasts)) {
+  contrast = contrasts[[i]]
+  res <- results(dds,
+                 contrast=contrast)
+  
+  # Determine if the mean expression increases or decreases
+  condition1_mean <- averages_df[[contrast[3]]]  # Mean for the first condition
+  condition2_mean <- averages_df[[contrast[2]]]  # Mean for the second condition
+  expressionDirection <- ifelse(condition1_mean < condition2_mean, "I", "D")
+  
+  # Hypothesis test, FTR null assign 'S', Rej null assign I/D
+  res$expressionChange <- ifelse(res$padj > 0.05, "S", expressionDirection)
+  
+  contrast_results[[paste(contrast[3], "to", contrast[2])]] <- res
+}
+```
+
+## Motif Structuring
+The variables (I,S,D) that corespond to expression are currently being stored in the list of DESeq objects. In order to create an index of gene expression, genes are added to a dataframe that completley describes their patterns of expression over the time course. This tabe can be manipulated in order to generate a singular index of pattern structure depending on the needs of the research. 
+
+
+The complete time course analysis can be organized into a piecewise hierarchical structure with 4 tiers, 
+
+- Primary:		V-PL\
+- Secondary:	V-EL MP-PL\
+- Tertiary:		V-LP MP-EL LP-PL\
+- Quaternary:	V-MP MP-LP LP-EL EL-PL\
+
+A complete model vector will be structured as\
+Primary-Secondary-Tertiary-Quaternary\
+X-XX-XXX-XXXX\
+
+
+```{r}
+combined_results <- data.frame(gene=rownames(contrast_results[[1]]))
+# Loop through each contrast result to combine them
+for (i in seq_along(contrast_results)) {
+  contrast_name <- names(contrast_results)[i]  # Get the name of the current contrast
+  # Create a temporary dataframe with genes and their expression changes for the current contrast
+  temp_df <- data.frame(gene=rownames(contrast_results[[i]]), 
+                        expressionChange=contrast_results[[i]]$expressionChange)
+  colnames(temp_df)[2] <- contrast_name  # Rename the second column to the current contrast name
+  # Merge the temporary dataframe with the combined_results dataframe
+  combined_results <- merge(combined_results, temp_df, by="gene", all=TRUE)
+}
+
+# Concatenate expression patterns to make model vector
+combined_results$modelVector <- apply(combined_results[, -1], 1, 
+                                      function(x) paste(x, collapse = ""))
+
+# for Quaternary tree structure ###############################################################
+combined_results$primary <- combined_results[,2]
+combined_results$secondary <- paste0(combined_results[,3], combined_results[,4])
+combined_results$tertiary <- paste0(combined_results[,5], combined_results[,6], combined_results[,7])
+combined_results$quaternary <- paste0(combined_results[,8], combined_results[,9], combined_results[,10], combined_results[,11])
+
+
+
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+relevant_data <- combined_results %>%
+  dplyr::select(starts_with("v to"), starts_with("mp to"), starts_with("lp to"), starts_with("el to"))
+
+# Reshape data from wide to long format
+long_data <- relevant_data %>%
+  pivot_longer(cols = everything(), names_to = "transition", values_to = "event") %>%
+  group_by(transition, event) %>%
+  summarise(count = n(), .groups = 'drop')
+
+# Spread the data back to wide format to see counts for each event type in each transition
+wide_data <- long_data %>%
+  pivot_wider(names_from = event, values_from = count, values_fill = list(count = 0))
+
+
+wide <- as.data.frame(wide_data)
+
+cat("
+<style>
+table caption {
+  font-size: 8pt;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(wide, caption = "Incedence of Increasing, Decreasing and Steady Genes") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+```
+
+```{r, echo=FALSE, message=FALSE, results='asis'}
+selected_columns <- combined_results[, c(1, 12:16)]
+
+# Custom CSS to enlarge table captions
+cat("
+<style>
+table caption {
+  font-size: 8pt;
+  font-weight: bold;
+}
+</style>
+")
+
+# Assuming 'samples' is another data frame you want to display
+kable(head(combined_results[,1:11]), caption = "") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+kable(head(selected_columns), caption = "First 5 Rows of Pattern Dataframe") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE)
+
+
+```
+
+## Mapping Specific Motif
+
+Reducing the number of comparisons within a pattern structure can significantly decrease the total number of patterns identified. Additionally, depending on the objectives of the experiment, different patterns can be constructed that reveal more biologically relevant structures. Below, the 'vector' variable was constructed to create patterns from virgin to pregnancy to lactation.
+
+```{r}
+motif_index <- list()
+x <- combined_results
+vector <- paste0(x$`v to mp`,
+                 x$`v to lp`,
+                 x$`mp to el`,
+                 x$`lp to el`,
+                 x$`mp to l`,
+                 x$`lp to l`,
+                 x$`el to l`)
+
+# Loop through each unique modelVector
+for(model in unique(vector)) {
+  # Subset the genes that match the current modelVector
+  genes <- combined_results$gene[vector == model]
+  # Store
+  motif_index[[model]] <- genes
+}
+
+# Specific patterns can be called using this function 
+head(motif_index$SIIIIIS)
+```
+
+Throughout this entire process, Ensembl IDs have been used as gene identifiers. To make the data easier to read, mapping to symbols can be done using AnnotationDbi and the org.Bt.eg.db package for bovine gene symbols.
+
+```{r, message=F, warning=F}
+mapped_motif_index <- list()
+for(model in names(motif_index)) {
+  ensembl_ids <- motif_index[[model]]
+  gene_symbols <- tryCatch({
+    mapIds(org.Bt.eg.db,
+           keys = ensembl_ids,
+           column = "SYMBOL",
+           keytype = "ENSEMBL",
+           multivals = 'first')
+  }, error = function(e) {
+    message("Error with model ", model, ": ", e$message)
+    return(NA)  # Return NA or any other placeholder that indicates an error
+  })
+  mapped_motif_index[[model]] <- gene_symbols
+}
+head(mapped_motif_index$SIIIIIS)
+
+```
+
+# Session Info
+```{r}
+sessionInfo()
+```
+
+
